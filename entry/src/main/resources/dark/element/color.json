@@ -31,7 +31,8 @@
 
     { "name": "disabled_bg",    "value": "#262A32" },
 
-    { "name": "board_bg",       "value": "#2A2418" },
-    { "name": "board_line",     "value": "#3A3F4A" }
+    { "name": "board_bg",       "value": "#EADDC2" },
+    { "name": "board_line",     "value": "#B79E77" },
+    { "name": "board_star",     "value": "#7A6746" }
   ]
 }

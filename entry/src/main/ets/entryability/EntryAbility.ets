@@ -2,6 +2,7 @@ import { AbilityConstant, ConfigurationConstant, UIAbility, Want } from '@kit.Ab
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { window } from '@kit.ArkUI';
 import { SettingsStore, THEME_DARK, THEME_SYSTEM } from '../storage/SettingsStore';
+import { SafeArea } from '../utils/SafeArea';
 
 const DOMAIN = 0x0000;
 const TAG = 'testTag';
@@ -42,13 +43,17 @@ export default class EntryAbility extends UIAbility {
       hilog.error(DOMAIN, TAG, 'Failed to set colorMode: %{public}s', JSON.stringify(err));
     }
 
-    windowStage.getMainWindow().then((win: window.Window) => {
+    // 用同步接口：getMainWindow() 的 Promise 在某些设备上迟迟不落定，
+    // 那样避让区就永远量不到，摄像头会挡住界面。
+    try {
+      const win: window.Window = windowStage.getMainWindowSync();
+      SafeArea.watch(win);
       win.setPreferredOrientation(window.Orientation.LANDSCAPE).catch((err: Error) => {
         hilog.error(DOMAIN, TAG, 'setPreferredOrientation failed: %{public}s', err.message);
       });
-    }).catch((err: Error) => {
-      hilog.error(DOMAIN, TAG, 'getMainWindow failed: %{public}s', err.message);
-    });
+    } catch (err) {
+      hilog.error(DOMAIN, TAG, 'window setup failed: %{public}s', JSON.stringify(err));
+    }
   }
 
   onWindowStageDestroy(): void {

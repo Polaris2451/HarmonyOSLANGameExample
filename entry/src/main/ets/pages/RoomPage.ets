@@ -1,8 +1,10 @@
 import { Toast } from '../utils/Toast';
+import { Confirm } from '../utils/Confirm';
 import { TopBar } from '../components/TopBar';
 import { AppButton } from '../components/AppButton';
 import { RoomPlayer } from '../core/RoomPlayer';
 import { RoomRoute } from '../core/RoomRoute';
+import { ROUTE_GAME } from '../core/Routes';
 import { gameAccentRes, gameAccentSoftRes, gameMaxPlayers, gameNameRes } from '../core/GameKind';
 import { Clipboard } from '../utils/Clipboard';
 import { NetInfo } from '../utils/NetInfo';
@@ -11,8 +13,8 @@ import { ConnStatus, ErrCode, RosterEntry } from '../core/Protocol';
 
 /**
  * 房间页外壳，三种游戏共用。
- * 成员列表来自房主服务器的实时广播；
- * 房主自己的客户端连的是 127.0.0.1，与加入方共用同一套客户端代码。
+ * 布局：左侧是游戏区（空间大，放标题与地址信息），右侧窄栏只放状态、玩家列表和按钮。
+ * 这样在 vp 高度很小的横屏设备上，玩家列表也能保证显示完整。
  */
 @Component
 export struct RoomPage {
@@ -25,6 +27,8 @@ export struct RoomPage {
   @State errorText: ResourceStr = $r('app.string.err_connect_failed');
   @State selfId: string = '';
   @State canStart: boolean = false;
+  @State game: string = '';
+  private navigatedToGame: boolean = false;
 
   aboutToAppear(): void {
     const session: RoomSession = RoomSession.get();
@@ -45,10 +49,32 @@ export struct RoomPage {
       this.errorText = this.errorFor(code);
     };
     session.onStarted = () => {
-      Toast.show(this.getUIContext(), $r('app.string.room_game_started'));
+      // 房主和加入方都会收到 START，收到就跳到对局页；守卫避免重复入栈
+      if (this.navigatedToGame) {
+        return;
+      }
+      this.navigatedToGame = true;
+      this.pathStack.pushPathByName(ROUTE_GAME, this.route);
     };
+    // 关键：加入方可能在收到 roster 之后才创建本页，这里必须补齐已有状态
+    this.syncFromSession();
     if (this.route.isHost) {
       session.connectLocal();
+    }
+  }
+
+  /** 把会话里已经发生过的状态搬进本页的 @State。 */
+  private syncFromSession(): void {
+    const s: RoomSession = RoomSession.get();
+    this.route = s.route;
+    this.game = s.route.game;
+    this.status = s.status;
+    this.selfId = s.selfId;
+    this.maxPlayers = s.maxPlayers;
+    if (s.players.length > 0) {
+      this.applyRoster(s.players, s.maxPlayers);
+    } else {
+      this.refreshCanStart();
     }
   }
 
@@ -70,6 +96,7 @@ export struct RoomPage {
 
   private applyRoster(entries: RosterEntry[], maxPlayers: number): void {
     this.selfId = RoomSession.get().selfId;
+    this.game = RoomSession.get().route.game;
     const list: RoomPlayer[] = [];
     for (const entry of entries) {
       list.push(new RoomPlayer(entry.nickname, entry.isHost, entry.id === this.selfId));
@@ -84,31 +111,31 @@ export struct RoomPage {
   }
 
   private titleRes(): Resource {
-    if (this.route.game.length === 0) {
+    if (this.game.length === 0) {
       return $r('app.string.room_title');
     }
-    return gameNameRes(this.route.game);
+    return gameNameRes(this.game);
   }
 
   private accent(): Resource {
-    if (this.route.game.length === 0) {
+    if (this.game.length === 0) {
       return $r('app.color.brand');
     }
-    return gameAccentRes(this.route.game);
+    return gameAccentRes(this.game);
   }
 
   private accentSoft(): Resource {
-    if (this.route.game.length === 0) {
+    if (this.game.length === 0) {
       return $r('app.color.brand_soft');
     }
-    return gameAccentSoftRes(this.route.game);
+    return gameAccentSoftRes(this.game);
   }
 
   private maxOfGame(): number {
-    if (this.route.game.length === 0) {
+    if (this.game.length === 0) {
       return this.maxPlayers;
     }
-    return gameMaxPlayers(this.route.game);
+    return gameMaxPlayers(this.game);
   }
 
   private localAddr(): string {
@@ -116,7 +143,6 @@ export struct RoomPage {
     return ip.length > 0 ? ip + ':' + this.route.port.toString() : '';
   }
 
-  /** 房主展示给同学的地址：模拟器用 10.0.2.2，真机用本机局域网 IP。 */
   private shareAddr(): string {
     return NetInfo.shareAddress(this.route.port);
   }
@@ -164,42 +190,70 @@ export struct RoomPage {
   }
 
   private async leave(): Promise<void> {
+    const ok: boolean = await Confirm.ask(this.getUIContext(),
+      $r('app.string.leave_title'), $r('app.string.leave_msg'), $r('app.string.leave_ok'));
+    if (!ok) {
+      return;
+    }
     await RoomSession.get().leave();
     this.pathStack.pop();
   }
 
   @Builder
-  AddressBlock() {
-    Column({ space: 4 }) {
-      if (this.route.isHost) {
-        Text($r('app.string.room_share_title'))
-          .fontSize($r('app.float.font_caption'))
-          .fontColor($r('app.color.text_secondary'))
-          .width('100%')
-        Text(this.shareAddr())
-          .fontSize($r('app.float.font_subtitle'))
-          .fontWeight(FontWeight.Medium)
-          .fontColor($r('app.color.text_primary'))
-          .width('100%')
-          .maxLines(1)
-          .textOverflow({ overflow: TextOverflow.Ellipsis })
+  GameArea() {
+    Column({ space: 6 }) {
+      Text(this.titleRes())
+        .fontSize($r('app.float.font_title'))
+        .fontWeight(FontWeight.Medium)
+        .fontColor($r('app.color.text_primary'))
+      Text($r('app.string.room_placeholder'))
+        .fontSize($r('app.float.font_body'))
+        .fontColor($r('app.color.text_secondary'))
+      Text($r('app.string.room_offline_hint'))
+        .fontSize($r('app.float.font_caption'))
+        .fontColor($r('app.color.text_disabled'))
 
-      } else {
-        Text($r('app.string.room_host_addr'))
-          .fontSize($r('app.float.font_caption'))
-          .fontColor($r('app.color.text_secondary'))
-          .width('100%')
-        Text(this.guestAddr())
-          .fontSize($r('app.float.font_subtitle'))
-          .fontWeight(FontWeight.Medium)
-          .fontColor($r('app.color.text_primary'))
-          .width('100%')
-          .maxLines(1)
-          .textOverflow({ overflow: TextOverflow.Ellipsis })
+      Column({ space: 4 }) {
+        if (this.route.isHost) {
+          Text($r('app.string.room_share_title'))
+            .fontSize($r('app.float.font_caption'))
+            .fontColor($r('app.color.text_secondary'))
+          Text(this.shareAddr())
+            .fontSize($r('app.float.font_subtitle'))
+            .fontWeight(FontWeight.Medium)
+            .fontColor($r('app.color.text_primary'))
+          if (NetInfo.isEmulatorLike()) {
+            Text($r('app.string.room_share_device'))
+              .fontSize($r('app.float.font_caption'))
+              .fontColor($r('app.color.warning'))
+            Row({ space: 6 }) {
+              Text($r('app.string.room_local_internal'))
+                .fontSize($r('app.float.font_caption'))
+                .fontColor($r('app.color.text_disabled'))
+              Text(this.localAddr())
+                .fontSize($r('app.float.font_caption'))
+                .fontColor($r('app.color.text_disabled'))
+            }
+          }
+        } else {
+          Text($r('app.string.room_host_addr'))
+            .fontSize($r('app.float.font_caption'))
+            .fontColor($r('app.color.text_secondary'))
+          Text(this.guestAddr())
+            .fontSize($r('app.float.font_subtitle'))
+            .fontWeight(FontWeight.Medium)
+            .fontColor($r('app.color.text_primary'))
+        }
       }
+      .alignItems(HorizontalAlign.Center)
+      .padding({ top: 10 })
     }
-    .width('100%')
-    .alignItems(HorizontalAlign.Start)
+    .layoutWeight(1)
+    .height('100%')
+    .justifyContent(FlexAlign.Center)
+    .alignItems(HorizontalAlign.Center)
+    .backgroundColor(this.accentSoft())
+    .borderRadius($r('app.float.radius_panel'))
   }
 
   @Builder
@@ -232,7 +286,7 @@ export struct RoomPage {
       }
     }
     .width('100%')
-    .height(32)
+    .height(30)
     .alignItems(VerticalAlign.Center)
   }
 
@@ -253,40 +307,7 @@ export struct RoomPage {
         })
 
         Row({ space: 16 }) {
-          Column({ space: 10 }) {
-            Text(this.titleRes())
-              .fontSize($r('app.float.font_title'))
-              .fontWeight(FontWeight.Medium)
-              .fontColor($r('app.color.text_primary'))
-            Text($r('app.string.room_placeholder'))
-              .fontSize($r('app.float.font_body'))
-              .fontColor($r('app.color.text_secondary'))
-            Text($r('app.string.room_offline_hint'))
-              .fontSize($r('app.float.font_caption'))
-              .fontColor($r('app.color.text_disabled'))
-            if (this.route.isHost && NetInfo.isEmulatorLike()) {
-              // 模拟器里 10.0.2.x 是内部地址，别人连不上，必须说清楚
-              Text($r('app.string.room_share_device'))
-                .fontSize($r('app.float.font_caption'))
-                .fontColor($r('app.color.warning'))
-                .padding({ top: 10 })
-              Row({ space: 6 }) {
-                Text($r('app.string.room_local_internal'))
-                  .fontSize($r('app.float.font_caption'))
-                  .fontColor($r('app.color.text_disabled'))
-                Text(this.localAddr())
-                  .fontSize($r('app.float.font_caption'))
-                  .fontColor($r('app.color.text_disabled'))
-              }
-              .alignItems(VerticalAlign.Center)
-            }
-          }
-          .layoutWeight(1)
-          .height('100%')
-          .justifyContent(FlexAlign.Center)
-          .alignItems(HorizontalAlign.Center)
-          .backgroundColor(this.accentSoft())
-          .borderRadius($r('app.float.radius_panel'))
+          this.GameArea()
 
           Column({ space: 8 }) {
             Row({ space: 6 }) {
@@ -300,10 +321,6 @@ export struct RoomPage {
             .width('100%')
             .alignItems(VerticalAlign.Center)
 
-            this.AddressBlock()
-
-            Divider().color($r('app.color.border_subtle'))
-
             Row() {
               Text($r('app.string.room_players'))
                 .fontSize($r('app.float.font_body'))
@@ -315,8 +332,10 @@ export struct RoomPage {
             .width('100%')
             .justifyContent(FlexAlign.SpaceBetween)
 
+            Divider().color($r('app.color.border_subtle'))
+
             Scroll() {
-              Column({ space: 8 }) {
+              Column({ space: 6 }) {
                 ForEach(this.players, (p: RoomPlayer) => {
                   this.PlayerRow(p)
                 }, (p: RoomPlayer) => p.nickname + (p.isSelf ? '-self' : '-other'))
@@ -384,6 +403,10 @@ export struct RoomPage {
       .backgroundColor($r('app.color.bg_page'))
     }
     .hideTitleBar(true)
+    .onShown(() => {
+      // 从对局页返回后要允许「再来一局」再次跳转
+      this.navigatedToGame = false;
+    })
     .onReady((ctx: NavDestinationContext) => {
       const route: RoomRoute = ctx.pathInfo.param as RoomRoute;
       if (route !== undefined && route.port > 0) {

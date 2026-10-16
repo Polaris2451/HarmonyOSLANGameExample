@@ -1,7 +1,10 @@
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { RoomServer, StartResult } from '../net/RoomServer';
 import { RoomClient } from '../net/RoomClient';
-import { ConnStatus, EmptyBody, MsgType, RosterBody, RosterEntry, WelcomeBody } from '../core/Protocol';
+import {
+  ConnStatus, EmptyBody, EventBody, InputBody, MsgType, RosterBody, RosterEntry,
+  StateBody, WelcomeBody
+} from '../core/Protocol';
 import { RoomRoute } from '../core/RoomRoute';
 
 const DOMAIN: number = 0x0000;
@@ -29,11 +32,19 @@ export class RoomSession {
   status: string = ConnStatus.CLOSED;
   errorCode: string = '';
   started: boolean = false;
+  /** 缓存最近一次成员列表：房间页可能在广播之后才创建，必须能补上。 */
+  players: RosterEntry[] = [];
+  maxPlayers: number = 2;
+  /** 缓存最近一次对局快照：对局页同样可能在广播之后才创建。 */
+  gamePayload: string = '';
+  gameFinished: boolean = false;
 
   onRoster: (players: RosterEntry[], maxPlayers: number) => void = () => {};
   onStatus: (status: string) => void = () => {};
   onError: (code: string) => void = () => {};
   onStarted: () => void = () => {};
+  onState: (payload: string) => void = () => {};
+  onEvent: (kind: string, message: string) => void = () => {};
 
   /** 房主：起服务器（失败会返回错误码，由调用方提示）。 */
   async startServer(port: number, game: string, nickname: string): Promise<StartResult> {
@@ -45,10 +56,6 @@ export class RoomSession {
     }
     srv.onRoster = (players: RosterEntry[], maxPlayers: number) => {
       this.onRoster(players, maxPlayers);
-    };
-    srv.onStart = () => {
-      this.started = true;
-      this.onStarted();
     };
     this.server = srv;
     this.route.isHost = true;
@@ -79,6 +86,12 @@ export class RoomSession {
 
   private connect(url: string, nickname: string, hostToken: string): void {
     this.teardownClient();
+    this.players = [];
+    this.maxPlayers = 2;
+    this.gamePayload = '';
+    this.gameFinished = false;
+    this.started = false;
+    this.status = ConnStatus.CONNECTING;
     const client: RoomClient = new RoomClient();
     client.onStatus = (status: string) => {
       this.status = status;
@@ -100,6 +113,9 @@ export class RoomSession {
       try {
         const w: WelcomeBody = JSON.parse(body) as WelcomeBody;
         this.selfId = w.playerId;
+        // 加入方本来不知道房主选了什么游戏，由服务器告知
+        this.route.game = w.game;
+        this.maxPlayers = w.maxPlayers;
       } catch (err) {
         hilog.warn(DOMAIN, TAG, 'bad welcome');
       }
@@ -108,6 +124,8 @@ export class RoomSession {
     if (type === MsgType.ROSTER) {
       try {
         const r: RosterBody = JSON.parse(body) as RosterBody;
+        this.players = r.players;
+        this.maxPlayers = r.maxPlayers;
         this.onRoster(r.players, r.maxPlayers);
       } catch (err) {
         hilog.warn(DOMAIN, TAG, 'bad roster');
@@ -119,6 +137,44 @@ export class RoomSession {
       this.onStarted();
       return;
     }
+    if (type === MsgType.STATE) {
+      try {
+        const s: StateBody = JSON.parse(body) as StateBody;
+        this.gamePayload = s.payload;
+        this.onState(s.payload);
+      } catch (err) {
+        hilog.warn(DOMAIN, TAG, 'bad state');
+      }
+      return;
+    }
+    if (type === MsgType.EVENT) {
+      try {
+        const ev: EventBody = JSON.parse(body) as EventBody;
+        this.onEvent(ev.kind, ev.message);
+      } catch (err) {
+        hilog.warn(DOMAIN, TAG, 'bad event');
+      }
+      return;
+    }
+  }
+
+  /** 玩家的一步操作，交给房主判定。 */
+  sendInput(action: string, x: number, y: number): void {
+    this.sendInputText(action, x, y, '');
+  }
+
+  /** 带文本的一步操作（猜词、选词、笔画批次）。 */
+  sendInputText(action: string, x: number, y: number, text: string): void {
+    const client: RoomClient | undefined = this.client;
+    if (client === undefined) {
+      return;
+    }
+    const body: InputBody = new InputBody();
+    body.action = action;
+    body.x = x;
+    body.y = y;
+    body.text = text;
+    client.send(MsgType.INPUT, body);
   }
 
   /** 房主点开始：发一条 START，由服务器校验人数后广播。 */
@@ -153,5 +209,7 @@ export class RoomSession {
     this.selfId = '';
     this.status = ConnStatus.CLOSED;
     this.started = false;
+    this.gamePayload = '';
+    this.gameFinished = false;
   }
 }

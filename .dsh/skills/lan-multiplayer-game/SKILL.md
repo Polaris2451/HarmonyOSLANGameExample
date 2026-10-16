@@ -70,11 +70,17 @@ Rules that prevent 90% of classroom bugs:
 
 ## In-app hosting on HarmonyOS (verified)
 
-`webSocket.createWebSocketServer().start(config)` works on a phone emulator, but the config must stay minimal:
-passing an explicit `serverIP: '0.0.0.0'` together with a large `maxConcurrentClientsNumber` fails with
-`2302999 Websocket Unknown Other Error`. Give only `serverPort` plus small connection caps
-(`maxConcurrentClientsNumber: 8`, `maxConnectionsForOneClient: 2`). Port problems surface as `2302005`/`2302007`,
-NIC problems as `2302004`, permission as `201`.
+`webSocket.createWebSocketServer().start(config)` is picky on emulators:
+
+- An explicit `serverIP` fails with `2302999 Websocket Unknown Other Error`.
+- **Both connection caps must stay <= 10** (the documented defaults): `maxConcurrentClientsNumber: 16` fails the
+  same way. `8 / 8` is known good.
+- `maxConnectionsForOneClient` counts **per source IP**, not per room. Behind emulator port forwarding every
+  client — including the host's own loopback client — arrives as `127.0.0.1`, so a small value silently rejects
+  later players at the WebSocket layer (`server error: 200`) before your own room-full logic ever runs. Keep it
+  at least as large as the expected number of simultaneous players.
+
+Port problems surface as `2302005`/`2302007`, NIC problems as `2302004`, permission as `201`.
 
 Two emulators cannot reach each other directly. Bridge them through the host machine:
 `hdc -t <hostDevice> fport tcp:8080 tcp:8080` maps the host's loopback to the hosting device, and the joining
@@ -82,8 +88,10 @@ emulator connects to `10.0.2.2:8080`. `hdc fport` binds loopback only, so a real
 host through the computer's LAN IP. The mapping is also lost whenever an emulator reconnects — re-check `hdc fport ls`
 before every class.
 
-When rejecting a connection (room full, version mismatch), **await the send before closing**: calling `close()`
-immediately after `send()` drops the frame and the client only sees a socket close with no reason.
+When rejecting a connection (room full, version mismatch), **await the send AND delay the close by a few hundred
+milliseconds**: even after `send()`'s promise settles the frame may still be in the socket buffer, so an immediate
+`close()` truncates it and the client only sees a bare disconnect. A `setTimeout` of ~500 ms before `close()` is
+enough for the client to read the reason.
 
 ## Transport on HarmonyOS
 

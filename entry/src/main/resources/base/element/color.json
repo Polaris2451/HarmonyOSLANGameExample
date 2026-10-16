@@ -32,6 +32,11 @@
     { "name": "disabled_bg",    "value": "#E9ECF1" },
 
     { "name": "board_bg",       "value": "#FFF6E6" },
-    { "name": "board_line",     "value": "#D8DDE5" }
+    { "name": "board_line",     "value": "#C8AE86" },
+    { "name": "board_star",     "value": "#8A7554" },
+    { "name": "stone_black",    "value": "#22252B" },
+    { "name": "stone_white",    "value": "#FFFFFF" },
+    { "name": "stone_edge",     "value": "#9AA3B2" },
+    { "name": "last_marker",    "value": "#E5484D" }
   ]
 }

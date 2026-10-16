@@ -58,11 +58,20 @@ struct RoomPage {
 
 `build()` is a **pure description**: no `if` / `for` / `await` statements that produce nodes, no side effects, no local node variables. Conditionals appear only as ArkUI conditional syntax inside `build`, and loops use `ForEach` / `LazyForEach`.
 
-Every `ForEach` needs a stable, unique key generator - an index key makes list state jump:
+Every `ForEach` needs a key generator, and **the key must contain every mutable field the row renders**:
+ArkUI rebuilds an item only when its key changes, so a key of just `item.id` freezes the row forever.
 
 ~~~typescript
-ForEach(this.messages, (m: ChatMessage) => { MessageRow({ m: m }) }, (m: ChatMessage) => String(m.id))
+// WRONG: the score never updates, because the key never changes
+ForEach(this.players, (p: Player) => { Row(p) }, (p: Player) => p.id)
+
+// RIGHT: changing the score or the flag rebuilds the row
+ForEach(this.players, (p: Player) => { Row(p) },
+  (p: Player) => p.id + '/' + p.score.toString() + '/' + (p.guessed ? '1' : '0'))
 ~~~
+
+An index key is also wrong - it makes list state jump when items move. Prefer stable identity *plus* the
+mutable values you display.
 
 ## State management
 
@@ -177,6 +186,12 @@ HDC=/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/
 "$HDC" shell snapshot_display -f /data/local/tmp/s.jpeg   # then hdc file recv
 ~~~
 
+**Install the signed HAP.** Once the project has a signing config, `assembleHap` emits both
+`entry-default-signed.hap` and `entry-default-unsigned.hap`. Installing the unsigned one over a device that
+already has the signed one prints `AppMod finish` (looks like success) but the system does not replace the app —
+your code changes silently never run. When "I changed the code, the build passed, the install said OK, and nothing
+changed", check which artifact you installed first. Installing a differently-signed package also wipes app data.
+
 Without `DEVECO_SDK_HOME` the build fails immediately with `00303217 Configuration Error`. Without `JAVA_HOME` the ArkTS compile still succeeds and then `PackageHap` fails with `00308018 Unknown Error`, hiding "Unable to locate a Java Runtime" — this machine has no system JDK, only DevEco's bundled JBR 25. Because hvigor may carry `PackageHap` over as UP-TO-DATE from an earlier DevEco Studio build, this failure only surfaces after you change source. Unsigned HAPs install fine on this emulator; the `SignHap` warning is expected while `signingConfigs` stays empty.
 
 ## Review checklist
@@ -184,7 +199,7 @@ Without `DEVECO_SDK_HOME` the build fails immediately with `00303217 Configurati
 - [ ] No `any` / `unknown`; all wire data has a declared `interface`.
 - [ ] `build()` has one root and no side effects.
 - [ ] Every subscription / timer / socket is released in `aboutToDisappear`.
-- [ ] `ForEach` keys are stable and unique.
+- [ ] `ForEach` keys are stable, unique, and include every mutable field the row shows.
 - [ ] No V1/V2 decorator mixing; nested objects are observed explicitly.
 - [ ] `INTERNET` permission declared before any network call.
 - [ ] `hilog` used (not `console.log`) with a domain and `%{public}s` formatting.

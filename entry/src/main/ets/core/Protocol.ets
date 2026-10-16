@@ -18,6 +18,12 @@ export class MsgType {
   static readonly PONG: string = 'pong';
   static readonly START: string = 'start';
   static readonly BYE: string = 'bye';
+  /** 客户端 -> 房主：一步操作。 */
+  static readonly INPUT: string = 'input';
+  /** 房主 -> 全体：完整状态快照。 */
+  static readonly STATE: string = 'state';
+  /** 房主 -> 全体/单人：一次性事件（非法操作、胜负）。 */
+  static readonly EVENT: string = 'event';
 }
 
 /** 错误码，界面按码给文案，不直接显示服务器原文。 */
@@ -65,6 +71,27 @@ export class RosterBody {
 
 /** 没有内容的负载。 */
 export class EmptyBody {
+}
+
+/** 客户端发来的一步操作。x/y 只对需要坐标的游戏有意义。 */
+export class InputBody {
+  action: string = '';
+  x: number = -1;
+  y: number = -1;
+  /** 需要文本的操作（猜词、选词、笔画批次）放在这里。 */
+  text: string = '';
+}
+
+/** 状态快照。payload 是具体游戏自己的 JSON，协议层不关心内容。 */
+export class StateBody {
+  game: string = '';
+  payload: string = '';
+}
+
+/** 一次性事件。 */
+export class EventBody {
+  kind: string = '';
+  message: string = '';
 }
 
 export class ErrorBody {

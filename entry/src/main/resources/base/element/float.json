@@ -16,6 +16,7 @@
     { "name": "button_height", "value": "48vp" },
     { "name": "topbar_height", "value": "56vp" },
     { "name": "sidebar_width", "value": "300vp" },
+    { "name": "sidebar_width_narrow", "value": "256vp" },
     { "name": "card_padding",  "value": "16vp" }
   ]
 }

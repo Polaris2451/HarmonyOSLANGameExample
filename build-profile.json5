@@ -1,6 +1,20 @@
 {
   "app": {
-    "signingConfigs": [],
+    "signingConfigs": [
+      {
+        "name": "default",
+        "type": "HarmonyOS",
+        "material": {
+          "certpath": "/Users/hongsida/.ohos/config/default_gameexample20261016_KvPkIHEwwuyWj2rsd3FF1qClCLHuSWm6IQ5xoCjS_4c=.cer",
+          "keyAlias": "debugKey",
+          "keyPassword": "0000001BE71D2B8D2AEEE1462365B4E6FCADD4D3C8FD6A2114BCF8867C4985927FC9895AB8AF1405E38232",
+          "profile": "/Users/hongsida/.ohos/config/default_gameexample20261016_KvPkIHEwwuyWj2rsd3FF1qClCLHuSWm6IQ5xoCjS_4c=.p7b",
+          "signAlg": "SHA256withECDSA",
+          "storeFile": "/Users/hongsida/.ohos/config/default_gameexample20261016_KvPkIHEwwuyWj2rsd3FF1qClCLHuSWm6IQ5xoCjS_4c=.p12",
+          "storePassword": "0000001B585D5F3CD9C6FC14617AC34997386C2F88E1B815846E2CF091F36BF0DC4353662A5D27E29FE9E0"
+        }
+      }
+    ],
     "products": [
       {
         "name": "default",

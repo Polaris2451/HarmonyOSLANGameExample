@@ -3,6 +3,7 @@ export const ROUTE_SETTINGS: string = 'settings';
 export const ROUTE_CREATE: string = 'createRoom';
 export const ROUTE_JOIN: string = 'joinRoom';
 export const ROUTE_ROOM: string = 'room';
+export const ROUTE_GAME: string = 'game';
 
 /** 协议版本，握手时双方比对。 */
 export const PROTOCOL_VERSION: number = 1;

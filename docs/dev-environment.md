@@ -28,8 +28,25 @@ export PATH="$JAVA_HOME/bin:$PATH"
 1. 缺 `DEVECO_SDK_HOME` → 立刻报 `00303217 Configuration Error`。
 2. 缺 `JAVA_HOME` → ArkTS 编译能过，但 `PackageHap` 报 `00308018 Unknown Error`，真实原因被藏在 "Unable to locate a Java Runtime" 里。本机没有系统 JDK。
 
-产物：`entry/build/default/outputs/default/entry-default-unsigned.hap`。
-`signingConfigs` 为空，所以是未签名包；模拟器可直接安装，**真机调试需要另行配置签名**。
+产物有两个：
+
+- `entry/build/default/outputs/default/entry-default-signed.hap` —— **要装这个**
+- `entry/build/default/outputs/default/entry-default-unsigned.hap`
+
+### 踩过的坑：装错了包，改动"看起来不生效"
+
+工程一旦有了签名配置，构建会同时产出 signed 与 unsigned 两个 HAP。
+**把 unsigned 包 `install -r` 到已经装过 signed 包的设备上，hdc 会打印 `AppMod finish`（看起来成功），
+但系统实际上没有替换应用。** 表现就是：改代码、构建成功、安装"成功"，界面却纹丝不动。
+
+排查这种"改了没反应"时，第一步就是确认装的是哪个包：
+
+~~~bash
+SIGNED=entry/build/default/outputs/default/entry-default-signed.hap
+hdc install -r "$SIGNED"
+~~~
+
+顺带：signed 与 unsigned 之间来回切换会让系统清掉应用数据（昵称、最近连接都会丢）。
 
 ## 运行与调试
 
