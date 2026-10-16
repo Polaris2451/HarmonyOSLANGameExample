@@ -68,6 +68,23 @@ Rules that prevent 90% of classroom bugs:
 5. **Every message is at most a few KB.** A drawing stroke batch is the one exception; cap it (e.g. 200 points) and split.
 6. **Idempotent reconnect**: the client sends `resume{playerId, token}`; the server reattaches it to the same seat with the current snapshot.
 
+## In-app hosting on HarmonyOS (verified)
+
+`webSocket.createWebSocketServer().start(config)` works on a phone emulator, but the config must stay minimal:
+passing an explicit `serverIP: '0.0.0.0'` together with a large `maxConcurrentClientsNumber` fails with
+`2302999 Websocket Unknown Other Error`. Give only `serverPort` plus small connection caps
+(`maxConcurrentClientsNumber: 8`, `maxConnectionsForOneClient: 2`). Port problems surface as `2302005`/`2302007`,
+NIC problems as `2302004`, permission as `201`.
+
+Two emulators cannot reach each other directly. Bridge them through the host machine:
+`hdc -t <hostDevice> fport tcp:8080 tcp:8080` maps the host's loopback to the hosting device, and the joining
+emulator connects to `10.0.2.2:8080`. `hdc fport` binds loopback only, so a real device cannot reach an emulator
+host through the computer's LAN IP. The mapping is also lost whenever an emulator reconnects — re-check `hdc fport ls`
+before every class.
+
+When rejecting a connection (room full, version mismatch), **await the send before closing**: calling `close()`
+immediately after `send()` drops the frame and the client only sees a socket close with no reason.
+
 ## Transport on HarmonyOS
 
 - `webSocket` from `@kit.NetworkKit` is the right default: framing, text frames, and an `on('close')` you can drive reconnect from.

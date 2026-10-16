@@ -6,27 +6,81 @@ import { RoomRoute } from '../core/RoomRoute';
 import { gameAccentRes, gameAccentSoftRes, gameMaxPlayers, gameNameRes } from '../core/GameKind';
 import { Clipboard } from '../utils/Clipboard';
 import { NetInfo } from '../utils/NetInfo';
+import { RoomSession } from '../app/RoomSession';
+import { ConnStatus, ErrCode, RosterEntry } from '../core/Protocol';
 
 /**
  * 房间页外壳，三种游戏共用。
- * 左：游戏区域；右：侧栏（地址 + 玩家列表 + 操作）。
- * 侧栏只有玩家列表滚动，地址与按钮固定，避免人多时布局错位。
- * 本步只做界面：玩家列表暂时只有自己，真正同步在下一步接服务器后替换。
+ * 成员列表来自房主服务器的实时广播；
+ * 房主自己的客户端连的是 127.0.0.1，与加入方共用同一套客户端代码。
  */
 @Component
 export struct RoomPage {
   @Consume('pathStack') pathStack: NavPathStack;
   @State route: RoomRoute = new RoomRoute();
   @State players: RoomPlayer[] = [];
-  @State roomIp: string = '';
+  @State maxPlayers: number = 2;
+  @State status: string = ConnStatus.CONNECTING;
+  @State hasError: boolean = false;
+  @State errorText: ResourceStr = $r('app.string.err_connect_failed');
+  @State selfId: string = '';
+  @State canStart: boolean = false;
 
-  private applyRoute(route: RoomRoute): void {
-    this.route = route;
-    const ip: string = route.isHost ? NetInfo.getLocalIpv4() : route.hostIp;
-    this.roomIp = ip.length > 0 ? ip : route.hostIp;
+  aboutToAppear(): void {
+    const session: RoomSession = RoomSession.get();
+    this.route = session.route;
+    this.selfId = session.selfId;
+    session.onRoster = (entries: RosterEntry[], maxPlayers: number) => {
+      this.applyRoster(entries, maxPlayers);
+    };
+    session.onStatus = (status: string) => {
+      this.status = status;
+      if (status === ConnStatus.OPEN) {
+        this.hasError = false;
+      }
+      this.refreshCanStart();
+    };
+    session.onError = (code: string) => {
+      this.hasError = true;
+      this.errorText = this.errorFor(code);
+    };
+    session.onStarted = () => {
+      Toast.show(this.getUIContext(), $r('app.string.room_game_started'));
+    };
+    if (this.route.isHost) {
+      session.connectLocal();
+    }
+  }
+
+  private errorFor(code: string): Resource {
+    if (code === ErrCode.ROOM_FULL) {
+      return $r('app.string.err_room_full');
+    }
+    if (code === ErrCode.BAD_VERSION) {
+      return $r('app.string.err_bad_version');
+    }
+    if (code === ErrCode.BAD_PROTOCOL) {
+      return $r('app.string.err_protocol');
+    }
+    if (code === ErrCode.ALREADY_STARTED) {
+      return $r('app.string.err_need_two_players');
+    }
+    return $r('app.string.err_connect_failed');
+  }
+
+  private applyRoster(entries: RosterEntry[], maxPlayers: number): void {
+    this.selfId = RoomSession.get().selfId;
     const list: RoomPlayer[] = [];
-    list.push(new RoomPlayer(route.nickname, route.isHost, true));
+    for (const entry of entries) {
+      list.push(new RoomPlayer(entry.nickname, entry.isHost, entry.id === this.selfId));
+    }
     this.players = list;
+    this.maxPlayers = maxPlayers;
+    this.refreshCanStart();
+  }
+
+  private refreshCanStart(): void {
+    this.canStart = this.route.isHost && this.status === ConnStatus.OPEN && this.players.length >= 2;
   }
 
   private titleRes(): Resource {
@@ -50,31 +104,102 @@ export struct RoomPage {
     return gameAccentSoftRes(this.route.game);
   }
 
-  private maxPlayers(): number {
+  private maxOfGame(): number {
     if (this.route.game.length === 0) {
-      return 8;
+      return this.maxPlayers;
     }
     return gameMaxPlayers(this.route.game);
   }
 
-  private canStart(): boolean {
-    return this.route.isHost && this.players.length >= 2;
+  private localAddr(): string {
+    const ip: string = NetInfo.getLocalIpv4();
+    return ip.length > 0 ? ip + ':' + this.route.port.toString() : '';
   }
 
-  private startReason(): Resource {
-    if (this.players.length < 2) {
-      return $r('app.string.room_need_players');
+  /** 房主展示给同学的地址：模拟器用 10.0.2.2，真机用本机局域网 IP。 */
+  private shareAddr(): string {
+    return NetInfo.shareAddress(this.route.port);
+  }
+
+  private guestAddr(): string {
+    return this.route.hostIp + ':' + this.route.port.toString();
+  }
+
+  private statusText(): Resource {
+    if (this.status === ConnStatus.OPEN) {
+      return $r('app.string.status_online');
     }
-    return $r('app.string.room_waiting');
+    if (this.status === ConnStatus.RECONNECTING) {
+      return $r('app.string.status_reconnecting');
+    }
+    if (this.status === ConnStatus.FAILED) {
+      return $r('app.string.status_failed');
+    }
+    if (this.status === ConnStatus.CLOSED) {
+      return $r('app.string.status_closed');
+    }
+    return $r('app.string.status_connecting');
+  }
+
+  private statusColor(): Resource {
+    if (this.status === ConnStatus.OPEN) {
+      return $r('app.color.success');
+    }
+    if (this.status === ConnStatus.FAILED || this.status === ConnStatus.CLOSED) {
+      return $r('app.color.danger');
+    }
+    return $r('app.color.warning');
   }
 
   private copyAddress(): void {
-    const addr: string = this.roomIp + ':' + this.route.port.toString();
+    const addr: string = this.route.isHost ? this.shareAddr() : this.guestAddr();
+    if (addr.length === 0) {
+      return;
+    }
     Clipboard.copyText(addr).then((ok: boolean) => {
       if (ok) {
         Toast.show(this.getUIContext(), $r('app.string.copied'));
       }
     });
+  }
+
+  private async leave(): Promise<void> {
+    await RoomSession.get().leave();
+    this.pathStack.pop();
+  }
+
+  @Builder
+  AddressBlock() {
+    Column({ space: 4 }) {
+      if (this.route.isHost) {
+        Text($r('app.string.room_share_title'))
+          .fontSize($r('app.float.font_caption'))
+          .fontColor($r('app.color.text_secondary'))
+          .width('100%')
+        Text(this.shareAddr())
+          .fontSize($r('app.float.font_subtitle'))
+          .fontWeight(FontWeight.Medium)
+          .fontColor($r('app.color.text_primary'))
+          .width('100%')
+          .maxLines(1)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
+
+      } else {
+        Text($r('app.string.room_host_addr'))
+          .fontSize($r('app.float.font_caption'))
+          .fontColor($r('app.color.text_secondary'))
+          .width('100%')
+        Text(this.guestAddr())
+          .fontSize($r('app.float.font_subtitle'))
+          .fontWeight(FontWeight.Medium)
+          .fontColor($r('app.color.text_primary'))
+          .width('100%')
+          .maxLines(1)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
+      }
+    }
+    .width('100%')
+    .alignItems(HorizontalAlign.Start)
   }
 
   @Builder
@@ -120,7 +245,7 @@ export struct RoomPage {
           rightText: $r('app.string.action_copy'),
           showRight: true,
           onBack: () => {
-            this.pathStack.pop();
+            this.leave();
           },
           onRight: () => {
             this.copyAddress();
@@ -139,6 +264,22 @@ export struct RoomPage {
             Text($r('app.string.room_offline_hint'))
               .fontSize($r('app.float.font_caption'))
               .fontColor($r('app.color.text_disabled'))
+            if (this.route.isHost && NetInfo.isEmulatorLike()) {
+              // 模拟器里 10.0.2.x 是内部地址，别人连不上，必须说清楚
+              Text($r('app.string.room_share_device'))
+                .fontSize($r('app.float.font_caption'))
+                .fontColor($r('app.color.warning'))
+                .padding({ top: 10 })
+              Row({ space: 6 }) {
+                Text($r('app.string.room_local_internal'))
+                  .fontSize($r('app.float.font_caption'))
+                  .fontColor($r('app.color.text_disabled'))
+                Text(this.localAddr())
+                  .fontSize($r('app.float.font_caption'))
+                  .fontColor($r('app.color.text_disabled'))
+              }
+              .alignItems(VerticalAlign.Center)
+            }
           }
           .layoutWeight(1)
           .height('100%')
@@ -148,21 +289,18 @@ export struct RoomPage {
           .borderRadius($r('app.float.radius_panel'))
 
           Column({ space: 8 }) {
-            Column({ space: 4 }) {
-              Text($r('app.string.room_address'))
+            Row({ space: 6 }) {
+              Text('●')
+                .fontSize(10)
+                .fontColor(this.statusColor())
+              Text(this.statusText())
                 .fontSize($r('app.float.font_caption'))
                 .fontColor($r('app.color.text_secondary'))
-                .width('100%')
-              Text(this.roomIp + ':' + this.route.port.toString())
-                .fontSize($r('app.float.font_subtitle'))
-                .fontWeight(FontWeight.Medium)
-                .fontColor($r('app.color.text_primary'))
-                .width('100%')
-                .maxLines(1)
-                .textOverflow({ overflow: TextOverflow.Ellipsis })
             }
             .width('100%')
-            .alignItems(HorizontalAlign.Start)
+            .alignItems(VerticalAlign.Center)
+
+            this.AddressBlock()
 
             Divider().color($r('app.color.border_subtle'))
 
@@ -170,7 +308,7 @@ export struct RoomPage {
               Text($r('app.string.room_players'))
                 .fontSize($r('app.float.font_body'))
                 .fontColor($r('app.color.text_primary'))
-              Text(this.players.length.toString() + ' / ' + this.maxPlayers().toString())
+              Text(this.players.length.toString() + ' / ' + this.maxOfGame().toString())
                 .fontSize($r('app.float.font_caption'))
                 .fontColor($r('app.color.text_secondary'))
             }
@@ -190,8 +328,14 @@ export struct RoomPage {
             .layoutWeight(1)
             .align(Alignment.Top)
 
-            if (!this.canStart()) {
-              Text(this.startReason())
+            if (this.hasError) {
+              Text(this.errorText)
+                .fontSize($r('app.float.font_caption'))
+                .fontColor($r('app.color.danger'))
+                .width('100%')
+            } else if (!this.canStart) {
+              Text(this.route.isHost ? $r('app.string.room_need_players')
+                : $r('app.string.room_waiting'))
                 .fontSize($r('app.float.font_caption'))
                 .fontColor($r('app.color.text_secondary'))
                 .width('100%')
@@ -202,9 +346,9 @@ export struct RoomPage {
                 AppButton({
                   label: $r('app.string.room_start'),
                   primary: true,
-                  active: this.canStart(),
+                  active: this.canStart,
                   onTap: () => {
-                    Toast.show(this.getUIContext(), $r('app.string.room_not_yet'));
+                    RoomSession.get().requestStart();
                   }
                 })
               }
@@ -216,7 +360,7 @@ export struct RoomPage {
                   primary: false,
                   active: true,
                   onTap: () => {
-                    this.pathStack.pop();
+                    this.leave();
                   }
                 })
               }
@@ -242,7 +386,10 @@ export struct RoomPage {
     .hideTitleBar(true)
     .onReady((ctx: NavDestinationContext) => {
       const route: RoomRoute = ctx.pathInfo.param as RoomRoute;
-      this.applyRoute(route);
+      if (route !== undefined && route.port > 0) {
+        this.route = route;
+        RoomSession.get().route = route;
+      }
     })
   }
 }

@@ -9,12 +9,17 @@ import {
 } from '../core/GameKind';
 import { RoomRoute } from '../core/RoomRoute';
 import { ROUTE_ROOM } from '../core/Routes';
+import { RoomSession } from '../app/RoomSession';
+import { StartResult } from '../net/RoomServer';
 import { SettingsStore } from '../storage/SettingsStore';
 import { InputCheck } from '../utils/InputCheck';
 
+const AUTO_PICK_TRIES: number = 10;
+
 /**
- * 创建房间（横屏）：上半区选游戏，下半区分左右两栏填端口与昵称。
- * 昵称是必填项，为空时底部按钮不可点击。
+ * 创建房间（横屏）：选游戏、选端口、填昵称。
+ * 「创建房间」会真的把 WebSocket 服务器起来，端口被占用会当场报错；
+ * 服务器实例交给 RoomSession，由房间页接管。
  */
 @Component
 export struct CreateRoomPage {
@@ -24,15 +29,55 @@ export struct CreateRoomPage {
   @State nickname: string = SettingsStore.get().nickname;
   @State portHasError: boolean = false;
   @State portErrorText: ResourceStr = $r('app.string.error_port_required');
+  @State busy: boolean = false;
   private games: GameInfo[] = allGames();
 
-  private autoFillPort(): void {
-    this.portText = SettingsStore.get().defaultPort.toString();
-    this.portHasError = false;
-    Toast.show(this.getUIContext(), $r('app.string.create_auto_filled'));
+  private portErrorFor(code: string): Resource {
+    if (code === 'busy') {
+      return $r('app.string.err_port_busy');
+    }
+    if (code === 'nic') {
+      return $r('app.string.err_port_nic');
+    }
+    if (code === 'permission') {
+      return $r('app.string.err_port_permission');
+    }
+    return $r('app.string.err_port_unknown');
   }
 
-  private submit(): void {
+  /** 自动选择：从默认端口往后逐个真的去 listen，第一个成功的即保留。 */
+  private async autoPickPort(): Promise<void> {
+    if (this.busy) {
+      return;
+    }
+    this.busy = true;
+    this.portHasError = false;
+    const start: number = SettingsStore.get().defaultPort;
+    const name: string = this.nickname.trim().length > 0 ? this.nickname.trim() : '房主';
+    for (let p = start; p < start + AUTO_PICK_TRIES; p++) {
+      const result: StartResult = await RoomSession.get().startServer(p, this.game, name);
+      if (result.ok) {
+        this.portText = p.toString();
+        this.busy = false;
+        Toast.show(this.getUIContext(), $r('app.string.auto_pick_ok'));
+        return;
+      }
+      if (result.errorCode !== 'busy') {
+        this.portErrorText = this.portErrorFor(result.errorCode);
+        this.portHasError = true;
+        this.busy = false;
+        return;
+      }
+    }
+    this.portErrorText = $r('app.string.auto_pick_none');
+    this.portHasError = true;
+    this.busy = false;
+  }
+
+  private async submit(): Promise<void> {
+    if (this.busy) {
+      return;
+    }
     const name: string = this.nickname.trim();
     if (name.length === 0) {
       Toast.show(this.getUIContext(), $r('app.string.create_need_nickname'));
@@ -49,6 +94,27 @@ export struct CreateRoomPage {
       this.portHasError = true;
       return;
     }
+
+    this.busy = true;
+    const existing = RoomSession.get().server;
+    let ok: boolean = false;
+    let errorCode: string = '';
+    if (existing !== undefined && existing.running && existing.port === port
+      && existing.game === this.game) {
+      // 自动选择已经把这个端口起好了，直接复用
+      ok = true;
+    } else {
+      const result: StartResult = await RoomSession.get().startServer(port, this.game, name);
+      ok = result.ok;
+      errorCode = result.errorCode;
+    }
+    this.busy = false;
+
+    if (!ok) {
+      this.portErrorText = this.portErrorFor(errorCode);
+      this.portHasError = true;
+      return;
+    }
     this.portHasError = false;
 
     SettingsStore.get().nickname = name;
@@ -60,7 +126,14 @@ export struct CreateRoomPage {
     route.port = port;
     route.isHost = true;
     route.hostIp = '';
+    RoomSession.get().route = route;
     this.pathStack.pushPathByName(ROUTE_ROOM, route);
+  }
+
+  private abandon(): void {
+    // 返回时如果已经起过服务器，要关掉，避免端口一直被占
+    RoomSession.get().leave();
+    this.pathStack.pop();
   }
 
   @Builder
@@ -79,7 +152,7 @@ export struct CreateRoomPage {
           title: $r('app.string.create_title'),
           showBack: true,
           onBack: () => {
-            this.pathStack.pop();
+            this.abandon();
           }
         })
 
@@ -121,7 +194,7 @@ export struct CreateRoomPage {
                     .backgroundColor($r('app.color.brand_soft'))
                     .borderRadius($r('app.float.radius_chip'))
                     .onClick(() => {
-                      this.autoFillPort();
+                      this.autoPickPort();
                     })
                 }
                 .width('100%')
@@ -194,7 +267,7 @@ export struct CreateRoomPage {
           AppButton({
             label: $r('app.string.create_submit'),
             primary: true,
-            active: this.nickname.trim().length > 0 && this.portText.length > 0,
+            active: !this.busy && this.nickname.trim().length > 0 && this.portText.length > 0,
             onTap: () => {
               this.submit();
             }

@@ -96,6 +96,37 @@
     { "name": "room_need_players", "value": "至少需要 2 名玩家才能开始" },
     { "name": "room_gomoku_full",  "value": "五子棋房间满 2 人即可开始" },
     { "name": "room_offline_hint", "value": "房主离开会结束整个房间" },
-    { "name": "room_placeholder",  "value": "游戏区域将在下一步接入" }
+    { "name": "room_placeholder",  "value": "游戏区域将在下一步接入" },
+
+    { "name": "room_you_are_host",   "value": "你是房主" },
+    { "name": "room_wait_guest",     "value": "等待同学加入" },
+    { "name": "room_share_title",    "value": "发给同学" },
+    { "name": "room_share_emulator", "value": "模拟器同学填" },
+    { "name": "room_share_device",   "value": "真机同学填「电脑的局域网 IP:端口」" },
+    { "name": "room_local_internal", "value": "本机内部地址（别人连不上）" },
+    { "name": "room_host_addr",      "value": "房主地址" },
+    { "name": "room_game_started",   "value": "游戏已开始（对局将在下一步接入）" },
+
+    { "name": "status_connecting",    "value": "正在连接…" },
+    { "name": "status_reconnecting",  "value": "连接断开，正在重连…" },
+    { "name": "status_closed",        "value": "已断开" },
+    { "name": "status_failed",        "value": "连接失败" },
+    { "name": "status_online",        "value": "已连接" },
+
+    { "name": "err_room_full",        "value": "房间已满，无法加入" },
+    { "name": "err_bad_version",      "value": "双方版本不一致，请使用同一安装包" },
+    { "name": "err_connect_failed",   "value": "连不上，请确认房主已创建房间且地址正确" },
+    { "name": "err_host_gone",        "value": "房主已离开，房间结束" },
+    { "name": "err_port_busy",        "value": "该端口已被占用，请换一个" },
+    { "name": "err_port_nic",         "value": "该地址无法监听，请检查网络" },
+    { "name": "err_port_permission",  "value": "缺少网络权限" },
+    { "name": "err_port_unknown",     "value": "创建房间失败，请重试" },
+    { "name": "err_protocol",         "value": "收到无法解析的数据" },
+    { "name": "err_need_two_players", "value": "至少需要 2 名玩家" },
+
+    { "name": "join_connecting",     "value": "连接中…" },
+    { "name": "join_ip_hint",        "value": "真机填房主的局域网 IP；模拟器之间填 10.0.2.2" },
+    { "name": "auto_pick_none",      "value": "附近端口都被占用了，请手动指定" },
+    { "name": "auto_pick_ok",        "value": "已找到一个可用端口" }
   ]
 }

@@ -4,10 +4,15 @@ import { AppButton } from '../components/AppButton';
 import { LabeledInput } from '../components/LabeledInput';
 import { RoomRoute } from '../core/RoomRoute';
 import { ROUTE_ROOM } from '../core/Routes';
+import { RoomSession } from '../app/RoomSession';
+import { ConnStatus, ErrCode } from '../core/Protocol';
 import { SettingsStore } from '../storage/SettingsStore';
 import { InputCheck } from '../utils/InputCheck';
 
-/** 加入房间（横屏）：IP 与端口并排，下面填昵称。 */
+/**
+ * 加入房间（横屏）：IP 与端口并排，下面填昵称。
+ * 连接结果在这里先给一次反馈：成功才进房间页，失败留在本页显示原因。
+ */
 @Component
 export struct JoinRoomPage {
   @Consume('pathStack') pathStack: NavPathStack;
@@ -18,10 +23,26 @@ export struct JoinRoomPage {
   @State portHasError: boolean = false;
   @State portErrorText: ResourceStr = $r('app.string.error_port_required');
   @State recentText: string = '';
+  @State connecting: boolean = false;
+  @State hasError: boolean = false;
+  @State errorText: ResourceStr = $r('app.string.err_connect_failed');
 
   aboutToAppear(): void {
     const s = SettingsStore.get();
     this.recentText = s.lastHost.length > 0 ? s.lastHost + ':' + s.lastPort.toString() : '';
+  }
+
+  private errorFor(code: string): Resource {
+    if (code === ErrCode.ROOM_FULL) {
+      return $r('app.string.err_room_full');
+    }
+    if (code === ErrCode.BAD_VERSION) {
+      return $r('app.string.err_bad_version');
+    }
+    if (code === ErrCode.BAD_PROTOCOL) {
+      return $r('app.string.err_protocol');
+    }
+    return $r('app.string.err_connect_failed');
   }
 
   private useRecent(): void {
@@ -33,12 +54,16 @@ export struct JoinRoomPage {
   }
 
   private submit(): void {
+    if (this.connecting) {
+      return;
+    }
     const name: string = this.nickname.trim();
     if (name.length === 0) {
       Toast.show(this.getUIContext(), $r('app.string.join_need_nickname'));
       return;
     }
-    if (this.hostIp.trim().length === 0) {
+    const host: string = this.hostIp.trim();
+    if (host.length === 0) {
       this.ipHasError = true;
       return;
     }
@@ -58,17 +83,39 @@ export struct JoinRoomPage {
 
     const s = SettingsStore.get();
     s.nickname = name;
-    s.lastHost = this.hostIp.trim();
+    s.lastHost = host;
     s.lastPort = port;
     SettingsStore.flush();
 
-    const route: RoomRoute = new RoomRoute();
-    route.nickname = name;
-    route.port = port;
-    route.isHost = false;
-    route.hostIp = this.hostIp.trim();
-    route.game = '';
-    this.pathStack.pushPathByName(ROUTE_ROOM, route);
+    this.connecting = true;
+    this.hasError = false;
+
+    const session: RoomSession = RoomSession.get();
+    session.onStatus = (status: string) => {
+      if (status === ConnStatus.OPEN) {
+        this.connecting = false;
+        this.hasError = false;
+        const route: RoomRoute = new RoomRoute();
+        route.nickname = name;
+        route.port = port;
+        route.isHost = false;
+        route.hostIp = host;
+        route.game = '';
+        session.route = route;
+        this.pathStack.pushPathByName(ROUTE_ROOM, route);
+      } else if (status === ConnStatus.FAILED) {
+        this.connecting = false;
+        this.errorText = $r('app.string.err_connect_failed');
+        this.hasError = true;
+      }
+    };
+    session.onError = (code: string) => {
+      this.connecting = false;
+      this.errorText = this.errorFor(code);
+      this.hasError = true;
+      session.leave();
+    };
+    session.connectRemote(host, port, name);
   }
 
   build() {
@@ -78,6 +125,7 @@ export struct JoinRoomPage {
           title: $r('app.string.join_title'),
           showBack: true,
           onBack: () => {
+            RoomSession.get().leave();
             this.pathStack.pop();
           }
         })
@@ -121,6 +169,17 @@ export struct JoinRoomPage {
             .width('100%')
             .alignItems(VerticalAlign.Top)
 
+            Row({ space: 8 }) {
+              Text('·')
+                .fontSize($r('app.float.font_caption'))
+                .fontColor($r('app.color.text_disabled'))
+              Text($r('app.string.join_ip_hint'))
+                .fontSize($r('app.float.font_caption'))
+                .fontColor($r('app.color.text_secondary'))
+                .layoutWeight(1)
+            }
+            .width('100%')
+
             if (this.recentText.length > 0) {
               Row({ space: 8 }) {
                 Text($r('app.string.join_recent'))
@@ -154,19 +213,20 @@ export struct JoinRoomPage {
               .layoutWeight(1)
 
               Column() {
-                Row({ space: 8 }) {
-                  Text('·')
-                    .fontSize($r('app.float.font_caption'))
-                    .fontColor($r('app.color.text_disabled'))
-                  Text($r('app.string.join_hint'))
-                    .fontSize($r('app.float.font_caption'))
-                    .fontColor($r('app.color.text_secondary'))
-                    .layoutWeight(1)
+                if (this.connecting) {
+                  Text($r('app.string.join_connecting'))
+                    .fontSize($r('app.float.font_body'))
+                    .fontColor($r('app.color.brand'))
+                    .padding({ top: 22 })
+                } else if (this.hasError) {
+                  Text(this.errorText)
+                    .fontSize($r('app.float.font_body'))
+                    .fontColor($r('app.color.danger'))
+                    .padding({ top: 22 })
                 }
-                .width('100%')
-                .padding({ top: 22 })
               }
               .layoutWeight(1)
+              .alignItems(HorizontalAlign.Start)
             }
             .width('100%')
             .alignItems(VerticalAlign.Top)
@@ -182,8 +242,8 @@ export struct JoinRoomPage {
           AppButton({
             label: $r('app.string.join_submit'),
             primary: true,
-            active: this.nickname.trim().length > 0 && this.hostIp.trim().length > 0
-              && this.portText.length > 0,
+            active: !this.connecting && this.nickname.trim().length > 0
+              && this.hostIp.trim().length > 0 && this.portText.length > 0,
             onTap: () => {
               this.submit();
             }
