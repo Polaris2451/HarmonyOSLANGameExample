@@ -11,6 +11,7 @@ import { EventKind } from '../core/games/gomoku/GomokuGame';
 import { GameSession, InputResult } from '../core/GameSession';
 import { GomokuGame } from '../core/games/gomoku/GomokuGame';
 import { DrawGuessGame } from '../core/games/drawguess/DrawGuessGame';
+import { TetrisGame } from '../core/games/tetris/TetrisGame';
 
 const DOMAIN: number = 0x0000;
 const TAG: string = 'RoomServer';
@@ -130,10 +131,11 @@ export class RoomServer {
     this.timerId = setInterval(() => {
       this.sweep();
     }, SWEEP_INTERVAL_MS);
-    // 1 秒一次驱动对局计时（你画我猜的选词/作画/揭晓靠它推进）
+    // 每 100ms 驱动一次对局：俄罗斯方块的重力要靠它才顺滑，
+    // 其余游戏 tick 返回 false，不会产生多余的广播。
     this.tickId = setInterval(() => {
       this.onTick();
-    }, 1000);
+    }, 100);
     result.ok = true;
     hilog.info(DOMAIN, TAG, 'server listening on %{public}d', port);
     return result;
@@ -249,8 +251,7 @@ export class RoomServer {
       entry.isHost = c.isHost;
       players.push(entry);
     }
-    const session: GameSession = this.game === GameKind.DRAW_GUESS
-      ? new DrawGuessGame() : new GomokuGame();
+    const session: GameSession = this.sessionFor(this.game);
     session.start(players);
     this.gameSession = session;
     hilog.info(DOMAIN, TAG, 'game started with %{public}d players', players.length);
@@ -261,6 +262,17 @@ export class RoomServer {
         this.sendTo(c, MsgType.START, new EmptyBody());
       }
     });
+  }
+
+  /** 按游戏挑对局实现，网络层本身不认识任何具体游戏。 */
+  private sessionFor(game: string): GameSession {
+    if (game === GameKind.DRAW_GUESS) {
+      return new DrawGuessGame();
+    }
+    if (game === GameKind.TETRIS) {
+      return new TetrisGame();
+    }
+    return new GomokuGame();
   }
 
   private onTick(): void {

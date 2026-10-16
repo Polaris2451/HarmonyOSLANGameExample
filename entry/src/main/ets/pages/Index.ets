@@ -12,6 +12,7 @@ import { JoinRoomPage } from './JoinRoomPage';
 import { RoomPage } from './RoomPage';
 import { GomokuPage } from './GomokuPage';
 import { DrawGuessPage } from './DrawGuessPage';
+import { TetrisPage } from './TetrisPage';
 import { GameKind } from '../core/GameKind';
 import { RoomSession } from '../app/RoomSession';
 
@@ -65,6 +66,8 @@ struct Index {
   GameDest() {
     if (RoomSession.get().route.game === GameKind.DRAW_GUESS) {
       DrawGuessPage()
+    } else if (RoomSession.get().route.game === GameKind.TETRIS) {
+      TetrisPage()
     } else {
       GomokuPage()
     }

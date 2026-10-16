@@ -27,7 +27,7 @@ export function allGames(): GameInfo[] {
   return [
     new GameInfo(GameKind.GOMOKU, 2, 2),
     new GameInfo(GameKind.DRAW_GUESS, 2, 8),
-    new GameInfo(GameKind.TETRIS, 2, 4)
+    new GameInfo(GameKind.TETRIS, 2, 2)
   ];
 }
 

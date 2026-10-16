@@ -68,7 +68,7 @@
     { "name": "game_drawguess_short",   "value": "你画我猜" },
     { "name": "game_drawguess_players", "value": "2 - 8 人" },
     { "name": "game_tetris",          "value": "俄罗斯方块对战" },
-    { "name": "game_tetris_players",  "value": "2 - 4 人" },
+    { "name": "game_tetris_players",  "value": "固定 2 人" },
 
     { "name": "error_nickname_required", "value": "昵称不能为空" },
     { "name": "error_port_required",     "value": "请输入端口号" },
@@ -156,6 +156,16 @@
     { "name": "dg_clear",          "value": "清空画布" },
     { "name": "dg_guessed",        "value": "已猜对" },
     { "name": "dg_wrong",          "value": "没猜中，再想想" },
-    { "name": "dg_seconds",        "value": "剩余" }
+    { "name": "dg_seconds",        "value": "剩余" },
+
+    { "name": "tetris_self",       "value": "我" },
+    { "name": "tetris_foe",        "value": "对手" },
+    { "name": "tetris_next",       "value": "下一个" },
+    { "name": "tetris_lines",      "value": "消行" },
+    { "name": "tetris_level",      "value": "等级" },
+    { "name": "tetris_incoming",   "value": "待落垃圾" },
+    { "name": "tetris_out",        "value": "已出局" },
+    { "name": "tetris_you_win",    "value": "你赢了" },
+    { "name": "tetris_you_lose",   "value": "你输了" }
   ]
 }

@@ -23,6 +23,8 @@ const PROTOCOL_VERSION = 1;
 let seq = 0;
 let guessSent = false;
 let drawing = false;
+let autoTimer = null;
+const autoTetris = process.argv.includes('--autoTetris');
 const ws = new WebSocket(url);
 
 function send(type, body) {
@@ -50,12 +52,31 @@ ws.addEventListener('message', (ev) => {
   if (env.t === 'state') {
     let st = {};
     try { st = JSON.parse(body.payload); } catch { /* 忽略 */ }
-    console.log('[' + nickname + '] state phase=' + st.phase + ' round=' + st.round +
-      ' scores=' + JSON.stringify((st.players || []).map((p) => p.nickname + ':' + p.score)));
+    if (autoTetris) {
+      console.log('[' + nickname + '] state finished=' + st.finished + ' selfOut=' + st.selfOut +
+        ' players=' + JSON.stringify((st.players || []).map((p) => p.nickname + '/' + p.lines + '/' + p.active)));
+    } else {
+      console.log('[' + nickname + '] state phase=' + st.phase + ' round=' + st.round +
+        ' scores=' + JSON.stringify((st.players || []).map((p) => p.nickname + ':' + p.score)));
+    }
     drawing = st.phase === 'drawing';
     return;
   }
   console.log('[' + nickname + '] <- ' + env.t + ' ' + JSON.stringify(body));
+  if (env.t === 'start' && autoTetris && autoTimer === null) {
+    // 俄罗斯方块是实时的，没人操作就会一直空转。
+    // 这里随便乱按，让对方棋盘动起来，顺便把「顶到天花板就输」也验了。
+    autoTimer = setInterval(() => {
+      const roll = Math.random();
+      if (roll < 0.3) {
+        send('input', { action: 'move', x: Math.random() < 0.5 ? -1 : 1, y: 0, text: '' });
+      } else if (roll < 0.5) {
+        send('input', { action: 'rotate', x: 1, y: 0, text: '' });
+      } else {
+        send('input', { action: 'harddrop', x: 1, y: 0, text: '' });
+      }
+    }, 600);
+  }
   if (env.t === 'error') {
     console.log('[' + nickname + '] rejected: ' + body.code);
     process.exit(3);
