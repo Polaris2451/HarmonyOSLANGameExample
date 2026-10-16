@@ -7,11 +7,11 @@
         "material": {
           "certpath": "/Users/hongsida/.ohos/config/default_gameexample20261016_KvPkIHEwwuyWj2rsd3FF1qClCLHuSWm6IQ5xoCjS_4c=.cer",
           "keyAlias": "debugKey",
-          "keyPassword": "0000001BE71D2B8D2AEEE1462365B4E6FCADD4D3C8FD6A2114BCF8867C4985927FC9895AB8AF1405E38232",
+          "keyPassword": "0000001BD179C3E70B58834EC7A941021E078BD0DB5FCB90E5DCA237B656F3E8C0AFF65B810B39415BC81B",
           "profile": "/Users/hongsida/.ohos/config/default_gameexample20261016_KvPkIHEwwuyWj2rsd3FF1qClCLHuSWm6IQ5xoCjS_4c=.p7b",
           "signAlg": "SHA256withECDSA",
           "storeFile": "/Users/hongsida/.ohos/config/default_gameexample20261016_KvPkIHEwwuyWj2rsd3FF1qClCLHuSWm6IQ5xoCjS_4c=.p12",
-          "storePassword": "0000001B585D5F3CD9C6FC14617AC34997386C2F88E1B815846E2CF091F36BF0DC4353662A5D27E29FE9E0"
+          "storePassword": "0000001B051AA13E523790C212FCA1C3126B52DDAAB0FA9B4A2BBEA77E0C412BD57AD80A251517768F2C81"
         }
       }
     ],
@@ -20,7 +20,7 @@
         "name": "default",
         "signingConfig": "default",
         "targetSdkVersion": "26.0.0",
-        "compatibleSdkVersion": "26.0.0",
+        "compatibleSdkVersion": "6.1.0(23)",
         "runtimeOS": "HarmonyOS",
         "buildOption": {
           "strictMode": {

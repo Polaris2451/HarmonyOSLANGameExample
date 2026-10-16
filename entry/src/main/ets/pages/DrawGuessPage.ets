@@ -18,6 +18,14 @@ const BRUSH_WIDTH: number = 5;
 const FLUSH_POINTS: number = 6;
 
 /**
+ * 画布固定 4:3。
+ * 关键点是「逻辑比例固定、物理尺寸自适应」：每台设备都取可用区域里最大的 4:3 内接矩形，
+ * 这样手机、平板、折叠屏都能铺满各自的空间，而两端看到的画布形状始终一致 ——
+ * 否则按宽度、高度分别归一化后，笔迹在不同比例的屏幕上会被拉伸变形。
+ */
+const CANVAS_ASPECT: number = 4 / 3;
+
+/**
  * 你画我猜对局页。
  * 画布用归一化坐标，所以手机、平板、横竖屏都能还原同一张画。
  * 猜词只在房主那边判定，客户端拿不到答案。
@@ -44,7 +52,9 @@ export struct DrawGuessPage {
   @State hasHint: boolean = false;
   @State hintText: ResourceStr = '';
   @State colorIndex: number = 0;
-  @State canvasSize: number = 320;
+  /** 画布实际尺寸（vp），由可用区域和固定比例算出来。 */
+  @State canvasW: number = 320;
+  @State canvasH: number = 240;
 
   private settings: RenderingContextSettings = new RenderingContextSettings(true);
   private ctx: CanvasRenderingContext2D = new CanvasRenderingContext2D(this.settings);
@@ -120,10 +130,11 @@ export struct DrawGuessPage {
       return;
     }
     const ctx: CanvasRenderingContext2D = this.ctx;
-    const size: number = this.canvasSize;
-    ctx.clearRect(0, 0, size, size);
+    const cw: number = this.canvasW;
+    const ch: number = this.canvasH;
+    ctx.clearRect(0, 0, cw, ch);
     ctx.fillStyle = '#FFFFFF';
-    ctx.fillRect(0, 0, size, size);
+    ctx.fillRect(0, 0, cw, ch);
 
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
@@ -142,23 +153,37 @@ export struct DrawGuessPage {
       }
       ctx.beginPath();
       if (seg.n || prev.length === 0) {
-        ctx.moveTo(seg.p[0][0] * size, seg.p[0][1] * size);
+        ctx.moveTo(seg.p[0][0] * cw, seg.p[0][1] * ch);
       } else {
-        ctx.moveTo(prev[0] * size, prev[1] * size);
+        ctx.moveTo(prev[0] * cw, prev[1] * ch);
       }
       for (const pt of seg.p) {
-        ctx.lineTo(pt[0] * size, pt[1] * size);
+        ctx.lineTo(pt[0] * cw, pt[1] * ch);
       }
       ctx.stroke();
       if (seg.p.length === 1) {
         // 单点也要留下一个圆点
         ctx.beginPath();
-        ctx.arc(seg.p[0][0] * size, seg.p[0][1] * size, seg.w / 2, 0, Math.PI * 2);
+        ctx.arc(seg.p[0][0] * cw, seg.p[0][1] * ch, seg.w / 2, 0, Math.PI * 2);
         ctx.fillStyle = seg.c;
         ctx.fill();
       }
       prev = seg.p[seg.p.length - 1];
     }
+  }
+
+  /**
+   * 在 w×h 的可用区域里取最大的 4:3 内接矩形。
+   * 返回 [宽, 高]。区域本身比 4:3 窄时以宽度为准，反之以高度为准。
+   */
+  private fitCanvas(w: number, h: number): number[] {
+    let cw: number = w;
+    let ch: number = w / CANVAS_ASPECT;
+    if (ch > h) {
+      ch = h;
+      cw = h * CANVAS_ASPECT;
+    }
+    return [cw, ch];
   }
 
   /** 猜词方在答案揭晓前才知道字数。 */
@@ -241,30 +266,21 @@ export struct DrawGuessPage {
           // 左：画布
           Column() {
             Canvas(this.ctx)
-              .width(this.canvasSize)
-              .height(this.canvasSize)
+              .width(this.canvasW)
+              .height(this.canvasH)
               .backgroundColor($r('app.color.bg_surface'))
               .borderRadius($r('app.float.radius_card'))
               .onReady(() => {
                 this.canvasReady = true;
                 this.redraw();
               })
-              .onAreaChange((oldArea: Area, newArea: Area) => {
-                const w: number = Number(newArea.width);
-                const h: number = Number(newArea.height);
-                const size: number = Math.min(w, h);
-                if (size > 0 && Math.abs(size - this.canvasSize) > 1) {
-                  this.canvasSize = size;
-                  this.redraw();
-                }
-              })
               .onTouch((event: TouchEvent) => {
                 if (!this.canDraw() || event.touches.length === 0) {
                   return;
                 }
                 const t: TouchObject = event.touches[0];
-                const nx: number = t.x / this.canvasSize;
-                const ny: number = t.y / this.canvasSize;
+                const nx: number = t.x / this.canvasW;
+                const ny: number = t.y / this.canvasH;
                 if (nx < 0 || nx > 1 || ny < 0 || ny > 1) {
                   return;
                 }
@@ -286,9 +302,13 @@ export struct DrawGuessPage {
           .onAreaChange((oldArea: Area, newArea: Area) => {
             const w: number = Number(newArea.width);
             const h: number = Number(newArea.height);
-            const size: number = Math.min(w, h) - 8;
-            if (size > 0 && Math.abs(size - this.canvasSize) > 1) {
-              this.canvasSize = size;
+            if (w <= 0 || h <= 0) {
+              return;
+            }
+            const fit: number[] = this.fitCanvas(w - 8, h - 8);
+            if (Math.abs(fit[0] - this.canvasW) > 1 || Math.abs(fit[1] - this.canvasH) > 1) {
+              this.canvasW = fit[0];
+              this.canvasH = fit[1];
               this.redraw();
             }
           })
