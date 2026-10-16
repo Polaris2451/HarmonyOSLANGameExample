@@ -20,6 +20,9 @@ export struct GomokuPage {
   @State finished: boolean = false;
   @State lastX: number = -1;
   @State lastY: number = -1;
+  /** 本地预落的那颗子：服务器回包前先画出来，落子才跟手。收到权威棋盘后被覆盖。 */
+  @State pendingX: number = -1;
+  @State pendingY: number = -1;
   @State blackName: string = '';
   @State whiteName: string = '';
   @State myColor: number = STONE_EMPTY;
@@ -72,6 +75,9 @@ export struct GomokuPage {
     } else {
       this.myColor = STONE_EMPTY;
     }
+    // 权威棋盘到了，本地预落的子作废（服务端要么已经收录，要么已经拒绝）
+    this.pendingX = -1;
+    this.pendingY = -1;
     this.refreshLabels();
     this.draw();
   }
@@ -88,6 +94,10 @@ export struct GomokuPage {
     if (kind !== EventKind.ILLEGAL) {
       return;
     }
+    // 被拒绝时不一定会再收到 STATE，这里必须自己把预落的子撤掉
+    this.pendingX = -1;
+    this.pendingY = -1;
+    this.draw();
     this.hintText = this.illegalText(message);
     this.hasHint = true;
     Toast.show(this.getUIContext(), this.hintText);
@@ -186,9 +196,25 @@ export struct GomokuPage {
       }
     }
 
-    if (this.lastX >= 0 && this.lastY >= 0) {
+    // 本地预落的那一颗：先当权威棋子画出来，手感才跟手
+    if (this.pendingX >= 0 && this.pendingY >= 0 && this.myColor !== STONE_EMPTY) {
       ctx.beginPath();
-      ctx.arc(pad + this.lastX * cell, pad + this.lastY * cell,
+      ctx.arc(pad + this.pendingX * cell, pad + this.pendingY * cell, radius, 0, Math.PI * 2);
+      ctx.fillStyle = this.myColor === STONE_BLACK ? BoardPalette.black : BoardPalette.white;
+      ctx.fill();
+      if (this.myColor === STONE_WHITE) {
+        ctx.strokeStyle = BoardPalette.edge;
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      }
+    }
+
+    // 最后一手的标记跟着预落的那一颗走，这样本地和服务端的视觉完全一致
+    const markX: number = this.pendingX >= 0 ? this.pendingX : this.lastX;
+    const markY: number = this.pendingX >= 0 ? this.pendingY : this.lastY;
+    if (markX >= 0 && markY >= 0) {
+      ctx.beginPath();
+      ctx.arc(pad + markX * cell, pad + markY * cell,
         Math.max(3, cell * 0.16), 0, Math.PI * 2);
       ctx.strokeStyle = BoardPalette.last;
       ctx.lineWidth = 2;
@@ -200,12 +226,23 @@ export struct GomokuPage {
     if (!this.isMyTurn() || this.cell <= 0) {
       return;
     }
+    // 上一手还没被服务端确认前不再接受落子，否则本地连点会变成两次落子
+    if (this.pendingX >= 0) {
+      return;
+    }
     const x: number = Math.round((px - this.pad) / this.cell);
     const y: number = Math.round((py - this.pad) / this.cell);
     if (x < 0 || x >= GOMOKU_SIZE || y < 0 || y >= GOMOKU_SIZE) {
       return;
     }
+    if (this.cells[y * GOMOKU_SIZE + x] !== STONE_EMPTY) {
+      return;
+    }
     this.hasHint = false;
+    // 先本地落一颗，不等服务器回包
+    this.pendingX = x;
+    this.pendingY = y;
+    this.draw();
     RoomSession.get().sendInput('place', x, y);
   }
 

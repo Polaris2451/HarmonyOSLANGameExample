@@ -60,6 +60,13 @@ export struct DrawGuessPage {
   private ctx: CanvasRenderingContext2D = new CanvasRenderingContext2D(this.settings);
   private canvasReady: boolean = false;
   private strokes: string[] = [];
+  /**
+   * 本地已经画上、但还没被服务端回包确认的笔画批次。
+   * 画手不靠它就没法跟手：没有它，每一笔都要等一个来回才出现。
+   */
+  private localPending: string[] = [];
+  /** 已经发出去的批次数，用来判断服务端的快照是否已经覆盖本地预画的内容。 */
+  private sentBatches: number = 0;
   private pending: number[][] = [];
   private pendingNew: boolean = true;
   private tickId: number = -1;
@@ -117,6 +124,14 @@ export struct DrawGuessPage {
     this.myId = RoomSession.get().selfId;
     this.isDrawer = this.myId.length > 0 && this.myId === state.drawerId;
     this.strokes = state.strokes;
+    if (this.strokes.length === 0) {
+      // 新的一轮，一切从头开始
+      this.sentBatches = 0;
+      this.localPending = [];
+    } else if (this.strokes.length >= this.sentBatches) {
+      // 服务端快照已经包含我发出的全部批次，本地预画的可以丢掉
+      this.localPending = [];
+    }
     this.redraw();
   }
 
@@ -146,30 +161,84 @@ export struct DrawGuessPage {
       } catch (err) {
         continue;
       }
-      ctx.strokeStyle = seg.c;
-      ctx.lineWidth = seg.w;
-      if (seg.p.length === 0) {
+      prev = this.paintSeg(ctx, seg, cw, ch, prev);
+    }
+    // 服务端还没确认的批次也要画，否则本地预画的内容会被这次重绘抹掉
+    for (const raw of this.localPending) {
+      let seg: DrawSeg;
+      try {
+        seg = JSON.parse(raw) as DrawSeg;
+      } catch (err) {
         continue;
       }
-      ctx.beginPath();
-      if (seg.n || prev.length === 0) {
-        ctx.moveTo(seg.p[0][0] * cw, seg.p[0][1] * ch);
-      } else {
-        ctx.moveTo(prev[0] * cw, prev[1] * ch);
-      }
-      for (const pt of seg.p) {
-        ctx.lineTo(pt[0] * cw, pt[1] * ch);
-      }
-      ctx.stroke();
-      if (seg.p.length === 1) {
-        // 单点也要留下一个圆点
-        ctx.beginPath();
-        ctx.arc(seg.p[0][0] * cw, seg.p[0][1] * ch, seg.w / 2, 0, Math.PI * 2);
-        ctx.fillStyle = seg.c;
-        ctx.fill();
-      }
-      prev = seg.p[seg.p.length - 1];
+      prev = this.paintSeg(ctx, seg, cw, ch, prev);
     }
+    // 正在画、还没凑够一批的点
+    if (this.pending.length > 0 && this.canDraw()) {
+      const tmp: DrawSeg = new DrawSeg();
+      tmp.w = BRUSH_WIDTH;
+      tmp.c = PALETTE[this.colorIndex];
+      tmp.p = this.pending;
+      tmp.n = this.pendingNew;
+      this.paintSeg(ctx, tmp, cw, ch, prev);
+    }
+  }
+
+  /** 画一批笔画，返回这一批的最后一个点，供下一批衔接。 */
+  private paintSeg(ctx: CanvasRenderingContext2D, seg: DrawSeg, cw: number, ch: number,
+    prev: number[]): number[] {
+    if (seg.p.length === 0) {
+      return prev;
+    }
+    ctx.strokeStyle = seg.c;
+    ctx.lineWidth = seg.w;
+    ctx.beginPath();
+    if (seg.n || prev.length === 0) {
+      ctx.moveTo(seg.p[0][0] * cw, seg.p[0][1] * ch);
+    } else {
+      ctx.moveTo(prev[0] * cw, prev[1] * ch);
+    }
+    for (const pt of seg.p) {
+      ctx.lineTo(pt[0] * cw, pt[1] * ch);
+    }
+    ctx.stroke();
+    if (seg.p.length === 1) {
+      // 单点也要留下一个圆点
+      ctx.beginPath();
+      ctx.arc(seg.p[0][0] * cw, seg.p[0][1] * ch, seg.w / 2, 0, Math.PI * 2);
+      ctx.fillStyle = seg.c;
+      ctx.fill();
+    }
+    return seg.p[seg.p.length - 1];
+  }
+
+  /**
+   * 落笔即时反馈：直接把这一段补到画布上，不等服务端。
+   * 下一次 applyState 触发的重绘会清掉它，再用服务端的内容重画一遍。
+   */
+  private drawLive(fromX: number, fromY: number, toX: number, toY: number, dot: boolean): void {
+    if (!this.canvasReady) {
+      return;
+    }
+    const ctx: CanvasRenderingContext2D = this.ctx;
+    const cw: number = this.canvasW;
+    const ch: number = this.canvasH;
+    const color: string = PALETTE[this.colorIndex];
+    ctx.strokeStyle = color;
+    ctx.fillStyle = color;
+    ctx.lineWidth = BRUSH_WIDTH;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    if (dot) {
+      ctx.beginPath();
+      ctx.arc(toX * cw, toY * ch, BRUSH_WIDTH / 2, 0, Math.PI * 2);
+      ctx.fill();
+      return;
+    }
+    ctx.beginPath();
+    ctx.moveTo(fromX * cw, fromY * ch);
+    ctx.lineTo(toX * cw, toY * ch);
+    ctx.stroke();
   }
 
   /**
@@ -196,8 +265,13 @@ export struct DrawGuessPage {
   }
 
   private pushPoint(nx: number, ny: number): void {
+    const first: boolean = this.pending.length === 0;
+    const fromX: number = first ? nx : this.pending[this.pending.length - 1][0];
+    const fromY: number = first ? ny : this.pending[this.pending.length - 1][1];
     this.pending.push([nx, ny]);
     this.lastPoint = [nx, ny];
+    // 本机立刻画出来，不然画手要等一个来回才看得到自己的笔迹
+    this.drawLive(fromX, fromY, nx, ny, first);
     if (this.pending.length >= FLUSH_POINTS) {
       this.flush(false);
     }
@@ -212,7 +286,11 @@ export struct DrawGuessPage {
     seg.c = PALETTE[this.colorIndex];
     seg.p = this.pending;
     seg.n = this.pendingNew;
-    RoomSession.get().sendInputText('stroke', 0, 0, JSON.stringify(seg));
+    const raw: string = JSON.stringify(seg);
+    // 记账 + 保留未确认副本；画面上刚才 drawLive 已经画好了，这里不用重绘
+    this.localPending.push(raw);
+    this.sentBatches = this.sentBatches + 1;
+    RoomSession.get().sendInputText('stroke', 0, 0, raw);
     this.pending = [];
     this.pendingNew = endOfStroke;
   }
