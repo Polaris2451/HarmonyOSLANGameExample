@@ -147,7 +147,7 @@ export struct JoinRoomPage {
                   }
                 })
               }
-              .layoutWeight(2)
+              .layoutWeight(1)
 
               Column() {
                 LabeledInput({
@@ -164,7 +164,7 @@ export struct JoinRoomPage {
                   }
                 })
               }
-              .layoutWeight(1)
+              .width(200)
             }
             .width('100%')
             .alignItems(VerticalAlign.Top)

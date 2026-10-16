@@ -14,6 +14,31 @@ export default class EntryAbility extends UIAbility {
     hilog.info(DOMAIN, TAG, '%{public}s', 'Ability onCreate');
   }
 
+  /**
+   * 系统状态栏/导航栏默认是白底，横屏时会在底部露出难看的一条白边。
+   * 这里把两条系统栏都刷成页面底色，白边就消失了。
+   */
+  private paintSystemBars(win: window.Window): void {
+    try {
+      const argb: number = this.context.resourceManager.getColorSync($r('app.color.bg_page').id);
+      let hex: string = (argb & 0xFFFFFF).toString(16);
+      while (hex.length < 6) {
+        hex = '0' + hex;
+      }
+      const color: string = '#' + hex;
+      win.setWindowSystemBarProperties({
+        statusBarColor: color,
+        navigationBarColor: color,
+        statusBarContentColor: '#1F2328',
+        navigationBarContentColor: '#1F2328'
+      }).catch((err: Error) => {
+        hilog.error(DOMAIN, TAG, 'setWindowSystemBarProperties failed: %{public}s', err.message);
+      });
+    } catch (err) {
+      hilog.error(DOMAIN, TAG, 'read bg_page color failed');
+    }
+  }
+
   onDestroy(): void {
     hilog.info(DOMAIN, TAG, '%{public}s', 'Ability onDestroy');
   }
@@ -47,7 +72,16 @@ export default class EntryAbility extends UIAbility {
     // 那样避让区就永远量不到，摄像头会挡住界面。
     try {
       const win: window.Window = windowStage.getMainWindowSync();
-      SafeArea.watch(win);
+      // 必须开全屏布局：否则页面高度不含系统导航栏，底部会露出一条白色区域。
+      // 开完之后再测避让区，底部内边距才是导航栏真实高度。
+      win.setWindowLayoutFullScreen(true).then(() => {
+        SafeArea.watch(win);
+        this.paintSystemBars(win);
+      }).catch((err: Error) => {
+        hilog.error(DOMAIN, TAG, 'setWindowLayoutFullScreen failed: %{public}s', err.message);
+        SafeArea.watch(win);
+        this.paintSystemBars(win);
+      });
       win.setPreferredOrientation(window.Orientation.LANDSCAPE).catch((err: Error) => {
         hilog.error(DOMAIN, TAG, 'setPreferredOrientation failed: %{public}s', err.message);
       });

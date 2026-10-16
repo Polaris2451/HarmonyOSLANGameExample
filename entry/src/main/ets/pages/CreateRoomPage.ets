@@ -182,15 +182,38 @@ export struct CreateRoomPage {
             .width('100%')
 
             Row({ space: 16 }) {
+              // 标签行只放标签，「自动选择」挪到输入框右侧。
+              // 两列首行因此等高（都是 caption 文字 + 8 间距 + 48 高输入框），
+              // 昵称输入框才会和端口输入框严格对齐。
               Column({ space: 8 }) {
-                Row() {
-                  Text($r('app.string.create_step_port'))
-                    .fontSize($r('app.float.font_caption'))
-                    .fontColor($r('app.color.text_secondary'))
+                Text($r('app.string.create_step_port'))
+                  .fontSize($r('app.float.font_caption'))
+                  .fontColor($r('app.color.text_secondary'))
+                  .width('100%')
+
+                Row({ space: 10 }) {
+                  TextInput({ text: this.portText, placeholder: $r('app.string.create_port_ph') })
+                    .type(InputType.Number)
+                    .maxLength(5)
+                    .height($r('app.float.button_height'))
+                    .width(140)
+                    .fontSize($r('app.float.font_body'))
+                    .fontColor($r('app.color.text_primary'))
+                    .placeholderColor($r('app.color.text_disabled'))
+                    .backgroundColor($r('app.color.bg_sunken'))
+                    .borderRadius($r('app.float.radius_input'))
+                    .padding({ left: 12, right: 12 })
+                    .borderWidth(this.portHasError ? 1 : 0)
+                    .borderColor($r('app.color.danger'))
+                    .onChange((value: string) => {
+                      this.portText = value;
+                      this.portHasError = false;
+                    })
+
                   Text($r('app.string.action_auto'))
                     .fontSize($r('app.float.font_caption'))
                     .fontColor($r('app.color.brand'))
-                    .padding({ left: 10, right: 10, top: 4, bottom: 4 })
+                    .padding({ left: 10, right: 10, top: 6, bottom: 6 })
                     .backgroundColor($r('app.color.brand_soft'))
                     .borderRadius($r('app.float.radius_chip'))
                     .onClick(() => {
@@ -198,26 +221,7 @@ export struct CreateRoomPage {
                     })
                 }
                 .width('100%')
-                .justifyContent(FlexAlign.SpaceBetween)
                 .alignItems(VerticalAlign.Center)
-
-                TextInput({ text: this.portText, placeholder: $r('app.string.create_port_ph') })
-                  .type(InputType.Number)
-                  .maxLength(5)
-                  .height($r('app.float.button_height'))
-                  .width('100%')
-                  .fontSize($r('app.float.font_body'))
-                  .fontColor($r('app.color.text_primary'))
-                  .placeholderColor($r('app.color.text_disabled'))
-                  .backgroundColor($r('app.color.bg_sunken'))
-                  .borderRadius($r('app.float.radius_input'))
-                  .padding({ left: 12, right: 12 })
-                  .borderWidth(this.portHasError ? 1 : 0)
-                  .borderColor($r('app.color.danger'))
-                  .onChange((value: string) => {
-                    this.portText = value;
-                    this.portHasError = false;
-                  })
 
                 if (this.portHasError) {
                   Text(this.portErrorText)
@@ -226,7 +230,7 @@ export struct CreateRoomPage {
                     .width('100%')
                 }
               }
-              .layoutWeight(1)
+              .width(280)
 
               Column() {
                 LabeledInput({
@@ -243,18 +247,8 @@ export struct CreateRoomPage {
             }
             .width('100%')
             .alignItems(VerticalAlign.Top)
+            .padding({ top: 14 })
 
-            Row({ space: 8 }) {
-              Text('·')
-                .fontSize($r('app.float.font_caption'))
-                .fontColor($r('app.color.text_disabled'))
-              Text($r('app.string.create_hint'))
-                .fontSize($r('app.float.font_caption'))
-                .fontColor($r('app.color.text_secondary'))
-                .layoutWeight(1)
-            }
-            .width('100%')
-            .padding({ top: 12 })
           }
           .width('100%')
           .padding({ left: 32, right: 32, bottom: 16 })

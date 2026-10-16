@@ -89,8 +89,6 @@ export struct SettingsPage {
     Column() {
       SettingsRow({
         label: $r('app.string.settings_nickname'),
-        hint: $r('app.string.settings_nickname_hint'),
-        showHint: true
       }) {
         TextInput({ text: this.nickname, placeholder: $r('app.string.settings_nickname_ph') })
           .maxLength(16)
@@ -118,8 +116,6 @@ export struct SettingsPage {
     Column() {
       SettingsRow({
         label: $r('app.string.settings_default_port'),
-        hint: $r('app.string.settings_default_port_hint'),
-        showHint: true
       }) {
         TextInput({ text: this.portText })
           .type(InputType.Number)
@@ -138,8 +134,6 @@ export struct SettingsPage {
       Divider().color($r('app.color.border_subtle'))
       SettingsRow({
         label: $r('app.string.settings_timeout'),
-        hint: $r('app.string.settings_timeout_hint'),
-        showHint: true
       }) {
         TextInput({ text: this.timeoutText })
           .type(InputType.Number)
@@ -175,8 +169,6 @@ export struct SettingsPage {
       Divider().color($r('app.color.border_subtle'))
       SettingsRow({
         label: $r('app.string.settings_motion'),
-        hint: $r('app.string.settings_motion_hint'),
-        showHint: true
       }) {
         Toggle({ type: ToggleType.Switch, isOn: this.motion })
           .selectedColor($r('app.color.brand'))
@@ -208,8 +200,6 @@ export struct SettingsPage {
       Divider().color($r('app.color.border_subtle'))
       SettingsRow({
         label: $r('app.string.settings_clear_recent'),
-        hint: $r('app.string.settings_clear_recent_hint'),
-        showHint: true
       }) {
         Text($r('app.string.action_clear'))
           .fontSize($r('app.float.font_body'))

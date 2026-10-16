@@ -201,52 +201,41 @@ export struct RoomPage {
 
   @Builder
   GameArea() {
-    Column({ space: 6 }) {
+    Column({ space: 12 }) {
       Text(this.titleRes())
         .fontSize($r('app.float.font_title'))
         .fontWeight(FontWeight.Medium)
         .fontColor($r('app.color.text_primary'))
-      Text($r('app.string.room_placeholder'))
-        .fontSize($r('app.float.font_body'))
-        .fontColor($r('app.color.text_secondary'))
-      Text($r('app.string.room_offline_hint'))
-        .fontSize($r('app.float.font_caption'))
-        .fontColor($r('app.color.text_disabled'))
 
-      Column({ space: 4 }) {
-        if (this.route.isHost) {
-          Text($r('app.string.room_share_title'))
-            .fontSize($r('app.float.font_caption'))
-            .fontColor($r('app.color.text_secondary'))
-          Text(this.shareAddr())
-            .fontSize($r('app.float.font_subtitle'))
-            .fontWeight(FontWeight.Medium)
-            .fontColor($r('app.color.text_primary'))
-          if (NetInfo.isEmulatorLike()) {
-            Text($r('app.string.room_share_device'))
-              .fontSize($r('app.float.font_caption'))
-              .fontColor($r('app.color.warning'))
-            Row({ space: 6 }) {
-              Text($r('app.string.room_local_internal'))
-                .fontSize($r('app.float.font_caption'))
-                .fontColor($r('app.color.text_disabled'))
-              Text(this.localAddr())
-                .fontSize($r('app.float.font_caption'))
-                .fontColor($r('app.color.text_disabled'))
+      // 地址和复制按钮并排，复制不必再跑到顶栏
+      Row({ space: 12 }) {
+        Text(this.route.isHost ? this.shareAddr() : this.guestAddr())
+          .fontSize($r('app.float.font_subtitle'))
+          .fontWeight(FontWeight.Medium)
+          .fontColor($r('app.color.text_primary'))
+        Column() {
+          AppButton({
+            label: $r('app.string.action_copy'),
+            primary: false,
+            active: true,
+            onTap: () => {
+              this.copyAddress();
             }
-          }
-        } else {
-          Text($r('app.string.room_host_addr'))
-            .fontSize($r('app.float.font_caption'))
-            .fontColor($r('app.color.text_secondary'))
-          Text(this.guestAddr())
-            .fontSize($r('app.float.font_subtitle'))
-            .fontWeight(FontWeight.Medium)
-            .fontColor($r('app.color.text_primary'))
+          })
         }
+        .width(96)
       }
-      .alignItems(HorizontalAlign.Center)
-      .padding({ top: 10 })
+      .alignItems(VerticalAlign.Center)
+      .justifyContent(FlexAlign.Center)
+
+      // 真机不加任何说明；只有模拟器才需要提示端口映射
+      if (this.route.isHost && NetInfo.isEmulatorLike()) {
+        Text($r('app.string.room_emulator_note'))
+          .fontSize($r('app.float.font_caption'))
+          .fontColor($r('app.color.danger'))
+          .textAlign(TextAlign.Center)
+          .padding({ left: 28, right: 28 })
+      }
     }
     .layoutWeight(1)
     .height('100%')
@@ -296,13 +285,8 @@ export struct RoomPage {
         TopBar({
           title: this.titleRes(),
           showBack: true,
-          rightText: $r('app.string.action_copy'),
-          showRight: true,
           onBack: () => {
             this.leave();
-          },
-          onRight: () => {
-            this.copyAddress();
           }
         })
 

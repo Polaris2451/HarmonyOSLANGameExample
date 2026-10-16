@@ -5,14 +5,10 @@
     { "name": "EntryAbility_label","value": "联机小游戏" },
 
     { "name": "app_title",     "value": "局域网联机小游戏" },
-    { "name": "app_subtitle",  "value": "同一个 Wi-Fi 直连 · 不需要服务器" },
 
     { "name": "menu_create",        "value": "创建房间" },
-    { "name": "menu_create_desc",   "value": "作为房主开放房间，选择端口" },
     { "name": "menu_join",          "value": "加入房间" },
-    { "name": "menu_join_desc",     "value": "输入房主的 IP 和端口" },
     { "name": "menu_settings",      "value": "设置" },
-    { "name": "menu_settings_desc", "value": "昵称 · 端口 · 外观" },
 
     { "name": "footer_local_ip",    "value": "本机 IP" },
     { "name": "footer_default_port","value": "默认端口" },
@@ -37,22 +33,16 @@
     { "name": "settings_group_about",    "value": "关于" },
     { "name": "settings_nickname",         "value": "昵称" },
     { "name": "settings_nickname_ph",      "value": "请输入昵称" },
-    { "name": "settings_nickname_hint",    "value": "进入游戏前必须填写" },
     { "name": "settings_default_port",     "value": "默认端口" },
-    { "name": "settings_default_port_hint","value": "1024 - 65535" },
     { "name": "settings_timeout",          "value": "连接超时（秒）" },
-    { "name": "settings_timeout_hint",     "value": "建议 5 - 15 秒" },
     { "name": "settings_theme",            "value": "主题" },
-    { "name": "settings_theme_hint",       "value": "默认浅色" },
     { "name": "theme_light",               "value": "浅色" },
     { "name": "theme_dark",                "value": "深色" },
     { "name": "theme_system",              "value": "跟随系统" },
     { "name": "settings_motion",           "value": "动效" },
-    { "name": "settings_motion_hint",      "value": "关闭后减少动画" },
     { "name": "settings_version",          "value": "版本" },
     { "name": "settings_protocol",         "value": "协议版本" },
     { "name": "settings_clear_recent",     "value": "清空最近连接" },
-    { "name": "settings_clear_recent_hint","value": "只清除本机的记录" },
     { "name": "cleared",                   "value": "已清空" },
 
     { "name": "create_title",        "value": "创建房间" },
@@ -60,11 +50,8 @@
     { "name": "create_step_port",    "value": "端口号" },
     { "name": "create_step_nickname","value": "昵称" },
     { "name": "create_port_ph",      "value": "8080" },
-    { "name": "create_hint",         "value": "创建成功后，把本机 IP 和端口告诉同学，他们用「加入房间」进来" },
     { "name": "create_submit",       "value": "创建房间" },
     { "name": "create_need_nickname","value": "请先填写昵称再创建房间" },
-    { "name": "create_auto_filled",  "value": "已填入默认端口，创建时会检测是否被占用" },
-    { "name": "room_not_yet",        "value": "网络层将在下一步接入" },
 
     { "name": "join_title",     "value": "加入房间" },
     { "name": "join_host_ip",   "value": "房主 IP" },
@@ -73,7 +60,6 @@
     { "name": "join_nickname",  "value": "昵称" },
     { "name": "join_submit",    "value": "加入房间" },
     { "name": "join_recent",    "value": "最近连接" },
-    { "name": "join_hint",      "value": "需要和房主在同一个 Wi-Fi 下" },
     { "name": "join_need_nickname", "value": "请先填写昵称再加入房间" },
 
     { "name": "game_gomoku",          "value": "五子棋" },
@@ -100,15 +86,11 @@
     { "name": "room_waiting",      "value": "等待房主开始游戏…" },
     { "name": "room_need_players", "value": "至少需要 2 名玩家才能开始" },
     { "name": "room_gomoku_full",  "value": "五子棋房间满 2 人即可开始" },
-    { "name": "room_offline_hint", "value": "房主离开会结束整个房间" },
-    { "name": "room_placeholder",  "value": "游戏区域将在下一步接入" },
 
+    { "name": "room_emulator_note",
+      "value": "检测到当前设备为模拟器，请按教程设置端口映射后向他人提供设备的局域网地址" },
     { "name": "room_you_are_host",   "value": "你是房主" },
     { "name": "room_wait_guest",     "value": "等待同学加入" },
-    { "name": "room_share_title",    "value": "发给同学" },
-    { "name": "room_share_emulator", "value": "模拟器同学填" },
-    { "name": "room_share_device",   "value": "真机同学填「电脑的局域网 IP:端口」" },
-    { "name": "room_local_internal", "value": "本机内部地址（别人连不上）" },
     { "name": "room_host_addr",      "value": "房主地址" },
     { "name": "room_game_started",   "value": "游戏已开始（对局将在下一步接入）" },
 
@@ -130,7 +112,7 @@
     { "name": "err_need_two_players", "value": "至少需要 2 名玩家" },
 
     { "name": "join_connecting",     "value": "连接中…" },
-    { "name": "join_ip_hint",        "value": "真机填房主的局域网 IP；模拟器之间填 10.0.2.2" },
+    { "name": "join_ip_hint",        "value": "跨设备填局域网 IP，同一设备内的模拟器填 10.0.2.2" },
     { "name": "auto_pick_none",      "value": "附近端口都被占用了，请手动指定" },
     { "name": "auto_pick_ok",        "value": "已找到一个可用端口" },
 
@@ -172,12 +154,8 @@
     { "name": "dg_guess_ph",       "value": "输入你猜的词" },
     { "name": "dg_guess_submit",   "value": "猜" },
     { "name": "dg_clear",          "value": "清空画布" },
-    { "name": "dg_color",          "value": "画笔颜色" },
     { "name": "dg_guessed",        "value": "已猜对" },
     { "name": "dg_wrong",          "value": "没猜中，再想想" },
-    { "name": "dg_seconds",        "value": "剩余" },
-    { "name": "dg_wait_others",    "value": "等其他人猜完" },
-    { "name": "dg_canvas_hint",    "value": "用手指在白色区域画画" },
-    { "name": "dg_readonly_hint",  "value": "只有画手能画" }
+    { "name": "dg_seconds",        "value": "剩余" }
   ]
 }

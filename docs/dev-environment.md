@@ -68,3 +68,48 @@ HDC=/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/
 
 `~/.Huawei/Emulator/deployed` 下有 Mate 90 Pro / Mate X7 / MatePad Pro 13 / MateBook Pro 等 AVD。
 模拟器镜像：`~/Library/Huawei/Sdk/system-image/HarmonyOS-7.0.0`（pc_all_arm、phone_all_arm）。
+
+## 横屏全屏与避让区
+
+### 底部一条白边
+
+现象：每个页面最下面都露出一条白色横带，中间是系统的返回手势条。
+**根因不是页面没铺满，而是窗口本身没有铺满整屏。** 不开全屏布局时，页面的 `height('100%')`
+只到系统导航栏之上，导航栏那段就由系统填成白色。
+
+排查办法是量一下，别猜：
+
+~~~typescript
+const p = win.getWindowProperties();
+hilog.info(0x0000, 'geo', 'win=%{public}dx%{public}d screen=%{public}dx%{public}d',
+  p.windowRect.width, p.windowRect.height, d.width, d.height);
+~~~
+
+修复：
+
+~~~typescript
+win.setWindowLayoutFullScreen(true).then(() => {
+  SafeArea.watch(win);      // 全屏之后再量避让区，底部内边距才是真实导航栏高度
+});
+~~~
+
+再用 `setWindowSystemBarProperties()` 把状态栏/导航栏刷成页面底色，
+个别设备上系统栏仍然不透明时也能融进去。
+
+### 摄像头挖孔
+
+横屏时挖孔在**左右两侧**，用 `getWindowAvoidArea(TYPE_CUTOUT)` 拿到的是 px，
+要除以 `display.getDefaultDisplaySync().densityPixels` 换成 vp 再当内边距用。
+把四个值写进 `AppStorage`、由最外层容器统一加 `padding`，所有页面一次性生效。
+
+注意两点：
+
+- 用 `getMainWindowSync()`，`getMainWindow()` 的 Promise 在某些设备上迟迟不落定，避让区会永远量不到。
+- 验证时**别只看截图**，用像素采样确认。JPEG 存下来直接数一行里有多少接近纯白的点，
+  比人眼判断可靠得多：
+
+~~~python
+im = Image.open(path).convert('RGB'); w, h = im.size; px = im.load()
+white = sum(1 for y in range(h-40, h) for x in range(0, w, 20)
+            if px[x, y][0] > 250 and px[x, y][1] > 250 and px[x, y][2] > 250)
+~~~

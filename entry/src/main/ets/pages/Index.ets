@@ -80,9 +80,6 @@ struct Index {
             .fontSize($r('app.float.font_display'))
             .fontWeight(FontWeight.Bold)
             .fontColor($r('app.color.text_primary'))
-          Text($r('app.string.app_subtitle'))
-            .fontSize($r('app.float.font_body'))
-            .fontColor($r('app.color.text_secondary'))
         }
         .width('100%')
         .alignItems(HorizontalAlign.Start)
@@ -91,7 +88,7 @@ struct Index {
           Column() {
             OptionCard({
               title: $r('app.string.menu_create'),
-              desc: $r('app.string.menu_create_desc'),
+              showDesc: false,
               glyph: '＋',
               accent: $r('app.color.brand'),
               softAccent: $r('app.color.brand_soft'),
@@ -105,7 +102,7 @@ struct Index {
           Column() {
             OptionCard({
               title: $r('app.string.menu_join'),
-              desc: $r('app.string.menu_join_desc'),
+              showDesc: false,
               glyph: '⇢',
               accent: $r('app.color.accent_gomoku'),
               softAccent: $r('app.color.accent_gomoku_soft'),
@@ -119,7 +116,7 @@ struct Index {
           Column() {
             OptionCard({
               title: $r('app.string.menu_settings'),
-              desc: $r('app.string.menu_settings_desc'),
+              showDesc: false,
               glyph: '⚙',
               accent: $r('app.color.accent_tetris'),
               softAccent: $r('app.color.accent_tetris_soft'),

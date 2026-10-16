@@ -12,6 +12,8 @@ export struct OptionCard {
   @Prop selected: boolean = false;
   @Prop showSelection: boolean = false;
   @Prop showGlyph: boolean = true;
+  /** 关掉副标题，主入口只留图标与标题。 */
+  @Prop showDesc: boolean = true;
   @Prop cardHeight: number = 148;
   onTap: () => void = () => {};
 
@@ -38,11 +40,13 @@ export struct OptionCard {
         .maxLines(1)
         .textOverflow({ overflow: TextOverflow.Ellipsis })
 
-      Text(this.desc)
-        .fontSize($r('app.float.font_caption'))
-        .fontColor($r('app.color.text_secondary'))
-        .maxLines(1)
-        .textOverflow({ overflow: TextOverflow.Ellipsis })
+      if (this.showDesc) {
+        Text(this.desc)
+          .fontSize($r('app.float.font_caption'))
+          .fontColor($r('app.color.text_secondary'))
+          .maxLines(1)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
+      }
     }
     .width('100%')
     .height(this.cardHeight)
