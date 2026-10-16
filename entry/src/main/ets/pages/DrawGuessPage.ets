@@ -32,6 +32,7 @@ export struct DrawGuessPage {
   @State drawerName: string = '';
   @State word: string = '';
   @State wordMask: string = '';
+  @State wordLength: number = 0;
   @State candidates: string[] = [];
   @State players: DrawPlayerView[] = [];
   @State secondsLeft: number = 0;
@@ -97,6 +98,7 @@ export struct DrawGuessPage {
     this.drawerName = state.drawerName;
     this.word = state.word;
     this.wordMask = state.wordMask;
+    this.wordLength = state.wordLength;
     this.candidates = state.candidates;
     this.players = state.players;
     this.secondsLeft = state.secondsLeft;
@@ -157,6 +159,11 @@ export struct DrawGuessPage {
       }
       prev = seg.p[seg.p.length - 1];
     }
+  }
+
+  /** 猜词方在答案揭晓前才知道字数。 */
+  private showCountHint(): boolean {
+    return !this.isDrawer && this.word.length === 0 && this.wordLength > 0;
   }
 
   private canDraw(): boolean {
@@ -340,6 +347,22 @@ export struct DrawGuessPage {
                 .fontWeight(FontWeight.Bold)
                 .fontColor($r('app.color.accent_drawguess'))
                 .width('100%')
+              // 只有猜词方、且答案还没揭晓时才提示字数
+              if (this.showCountHint()) {
+                Row({ space: 4 }) {
+                  Text($r('app.string.dg_word_count_pre'))
+                    .fontSize($r('app.float.font_caption'))
+                    .fontColor($r('app.color.text_secondary'))
+                  Text(this.wordLength.toString())
+                    .fontSize($r('app.float.font_caption'))
+                    .fontWeight(FontWeight.Medium)
+                    .fontColor($r('app.color.accent_drawguess'))
+                  Text($r('app.string.dg_word_count_suf'))
+                    .fontSize($r('app.float.font_caption'))
+                    .fontColor($r('app.color.text_secondary'))
+                }
+                .alignItems(VerticalAlign.Center)
+              }
             }
             .width('100%')
             .alignItems(HorizontalAlign.Start)

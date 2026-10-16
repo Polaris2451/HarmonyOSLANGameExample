@@ -44,6 +44,8 @@ export class DrawState {
   word: string = '';
   /** 猜词方的提示：用 ● 表示词长。 */
   wordMask: string = '';
+  /** 词的字数，用于「共 N 个字」提示；还没选词时为 0。 */
+  wordLength: number = 0;
   /** 只有画手在选择阶段能拿到候选词。 */
   candidates: string[] = [];
   /** 归一化坐标的笔画，按顺序重放。 */
@@ -328,6 +330,7 @@ export class DrawGuessGame implements GameSession {
     state.finished = this.finished;
     state.message = this.message;
     state.secondsLeft = Math.max(0, Math.ceil((this.phaseEndAt - Date.now()) / 1000));
+    state.wordLength = this.word.length;
 
     // 信息分层：只有画手拿到答案；其他人只看到词长
     if (isDrawer) {

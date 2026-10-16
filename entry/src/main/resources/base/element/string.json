@@ -166,6 +166,8 @@
     { "name": "dg_drawing_by",     "value": "正在作画" },
     { "name": "dg_your_word",      "value": "你要画的词" },
     { "name": "dg_word",           "value": "词" },
+    { "name": "dg_word_count_pre", "value": "共" },
+    { "name": "dg_word_count_suf", "value": "个字" },
     { "name": "dg_choose_hint",    "value": "选一个词开始作画" },
     { "name": "dg_guess_ph",       "value": "输入你猜的词" },
     { "name": "dg_guess_submit",   "value": "猜" },
