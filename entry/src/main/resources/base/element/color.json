@@ -1,8 +1,37 @@
 {
   "color": [
-    {
-      "name": "start_window_background",
-      "value": "#FFFFFF"
-    }
+    { "name": "start_window_background", "value": "#F5F6F8" },
+
+    { "name": "bg_page",        "value": "#F5F6F8" },
+    { "name": "bg_surface",     "value": "#FFFFFF" },
+    { "name": "bg_sunken",      "value": "#EDEFF3" },
+
+    { "name": "text_primary",   "value": "#1A1B1F" },
+    { "name": "text_secondary", "value": "#6B7280" },
+    { "name": "text_disabled",  "value": "#A9AEB8" },
+    { "name": "text_on_brand",  "value": "#FFFFFF" },
+
+    { "name": "border_subtle",  "value": "#E3E6EB" },
+    { "name": "border_strong",  "value": "#C9CFD8" },
+
+    { "name": "brand",          "value": "#3B6FF5" },
+    { "name": "brand_soft",     "value": "#E8EFFF" },
+
+    { "name": "accent_gomoku",        "value": "#2FA37A" },
+    { "name": "accent_gomoku_soft",   "value": "#E4F4EE" },
+    { "name": "accent_drawguess",     "value": "#F2963C" },
+    { "name": "accent_drawguess_soft","value": "#FDF1E3" },
+    { "name": "accent_tetris",        "value": "#7C5CF0" },
+    { "name": "accent_tetris_soft",   "value": "#EEEAFD" },
+
+    { "name": "success",        "value": "#2FA37A" },
+    { "name": "warning",        "value": "#E9A23B" },
+    { "name": "danger",         "value": "#E5484D" },
+    { "name": "danger_soft",    "value": "#FDECEC" },
+
+    { "name": "disabled_bg",    "value": "#E9ECF1" },
+
+    { "name": "board_bg",       "value": "#FFF6E6" },
+    { "name": "board_line",     "value": "#D8DDE5" }
   ]
 }
