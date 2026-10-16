@@ -12,6 +12,4 @@
 /.appanalyzer
 /.dsh
 /docs
-
-# 含本机绝对路径与加密后的签名口令，不提交
-/build-profile.json5
+/build-profile-bak.json5
