@@ -13,3 +13,4 @@
 /.dsh
 /docs
 /build-profile-bak.json5
+.DS_Store
